@@ -1,20 +1,37 @@
+import { after } from 'next/server'
 import { type ContestData, ContestSite } from './contest-site'
+import { publicQuiz } from '@/lib/quiz'
 import {
   churchRoleLabel,
   getPublishedCandidates,
+  getQuiz,
+  getReflectionPrompt,
   getSettings,
   payloadClient,
   voteState,
 } from '@/lib/server/contest'
+import { registrationsAreOpen, runSelection, selectionIsDue } from '@/lib/server/selection'
 import { computeFinaleRanking, computePreselectionRanking } from '@/lib/server/results'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 export default async function HomePage() {
   let data: ContestData | undefined
   try {
     const payload = await payloadClient()
     const settings = await getSettings(payload)
+
+    // Déclenchement de la sélection automatique dès la première visite après la clôture
+    // (la tâche planifiée quotidienne sert de filet de sécurité).
+    if (selectionIsDue(settings as never)) {
+      const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : undefined
+      after(async () => {
+        await runSelection(payload, { origin })
+      })
+    }
     const published = await getPublishedCandidates(payload, settings)
     const cards = published.map((candidate) => ({
       id: String(candidate.id),
@@ -56,7 +73,7 @@ export default async function HomePage() {
 
     data = {
       cfg: {
-        registrationsOpen: settings.registrationsOpen !== false,
+        registrationsOpen: registrationsAreOpen(settings as never),
         registrationDeadline: settings.registrationDeadline || null,
         minimumAge: settings.minimumAge || null,
       },
@@ -66,6 +83,8 @@ export default async function HomePage() {
       showJuryScore: settings.showJuryScore !== false,
       finalists,
       laureates,
+      quiz: publicQuiz(getQuiz(settings)),
+      reflectionPrompt: getReflectionPrompt(settings),
     }
   } catch {
     // Base indisponible : la page reste lisible avec les valeurs par défaut.

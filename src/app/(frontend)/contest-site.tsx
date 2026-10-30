@@ -22,6 +22,7 @@ import {
   SITUATIONS,
   isValidPhone,
 } from '@/lib/candidature-schema'
+import { REFLECTION_MAX_WORDS, REFLECTION_MIN_WORDS, countWords } from '@/lib/quiz-rules'
 
 /* ------------------------------------------------------------------ */
 /* Paramètres du concours — à compléter par le comité (cahier §23)     */
@@ -56,6 +57,8 @@ export type ContestData = {
   showJuryScore: boolean
   finalists: PublicCard[] | null
   laureates: (PublicCard & { rank: number })[] | null
+  quiz: Array<{ question: string; options: string[] }>
+  reflectionPrompt: string
 }
 
 const defaultData: ContestData = {
@@ -66,6 +69,8 @@ const defaultData: ContestData = {
   showJuryScore: true,
   finalists: null,
   laureates: null,
+  quiz: [],
+  reflectionPrompt: '',
 }
 
 const ContestDataContext = createContext<ContestData>(defaultData)
@@ -105,6 +110,7 @@ const STEPS = [
   { title: 'Identité', short: 'Identité' },
   { title: 'Informations religieuses', short: 'Foi' },
   { title: 'Parcours académique et professionnel', short: 'Parcours' },
+  { title: 'Épreuve de sélection', short: 'Épreuve' },
   { title: 'Engagements et validation', short: 'Validation' },
 ]
 
@@ -124,8 +130,8 @@ const pillars = [
 ]
 
 const journey = [
-  ['Inscription', 'Candidature en ligne, vérification automatique des conditions.'],
-  ['Présélection', 'Le comité retient dix candidats parmi les dossiers conformes.'],
+  ['Inscription', 'Candidature en ligne avec un QCM biblique et une courte réflexion.'],
+  ['Présélection', 'Les dix meilleures candidatures conformes sont retenues automatiquement.'],
   ['Travaux', 'Préparation d’une vidéo et d’un document écrit sur le sujet imposé.'],
   ['Vote & jury', 'Le public vote en ligne, le jury évalue chaque réflexion.'],
   ['Finalistes', 'Annonce des trois meilleurs scores pondérés.'],
@@ -171,7 +177,7 @@ const rules = [
   {
     title: 'Comment se déroule la présélection ?',
     body: [
-      'Chaque candidature est vérifiée automatiquement (identité, photo, coordonnées, appartenance chrétienne, église, engagements). Les dossiers conformes sont ensuite examinés par le comité d’organisation, qui retient dix candidats.',
+      'Chaque candidature est vérifiée automatiquement (identité, photo, coordonnées, appartenance chrétienne, église, engagements). À la clôture des inscriptions, les candidatures conformes sont classées selon l’épreuve de sélection : un QCM biblique sur 50 points et une courte réflexion sur 50 points, notée par une intelligence artificielle selon un barème fixe. Les dix meilleures sont retenues automatiquement.',
       'Les dix candidats présélectionnés sont prévenus par e-mail et téléchargent leur dossier officiel directement sur le site, depuis leur espace candidat.',
     ],
   },
@@ -916,8 +922,8 @@ function ContestHome({ onApply }: { onApply: () => void }) {
             Et si votre réflexion aidait un homme à se relever ?
           </p>
           <p className="mx-auto mt-5 max-w-xl text-white/75">
-            L’inscription prend une dizaine de minutes. Préparez une photo récente et le nom de
-            votre église.
+            L’inscription prend une vingtaine de minutes, épreuve de sélection comprise. Préparez
+            une photo récente et le nom de votre église.
           </p>
           <button
             type="button"
@@ -1061,7 +1067,13 @@ function StepHeading({ index, title, text }: { index: number; title: string; tex
   )
 }
 
-function validateStep(step: number, values: Values, photo: File | null, commitments: string[]) {
+function validateStep(
+  step: number,
+  values: Values,
+  photo: File | null,
+  commitments: string[],
+  quizLength: number,
+) {
   const errors: Values = {}
   const required = [...REQUIRED_BY_STEP[step]]
   if (step === 1 && values.isChristian !== 'Oui') {
@@ -1086,6 +1098,15 @@ function validateStep(step: number, values: Values, photo: File | null, commitme
       'Le concours est réservé aux personnes se déclarant chrétiennes : vous ne remplissez pas les conditions de participation.'
   }
   if (step === 3) {
+    for (let index = 0; index < quizLength; index += 1) {
+      if (!values[`quiz_${index}`]) errors[`quiz_${index}`] = 'Choisissez une réponse.'
+    }
+    const words = countWords(values.reflection || '')
+    if (words < REFLECTION_MIN_WORDS || words > REFLECTION_MAX_WORDS) {
+      errors.reflection = `Votre réflexion doit compter entre ${REFLECTION_MIN_WORDS} et ${REFLECTION_MAX_WORDS} mots (actuellement ${words}).`
+    }
+  }
+  if (step === 4) {
     const missing = COMMITMENTS.filter((item) => !commitments.includes(item.name))
     if (missing.length) errors.commitments = 'Cochez chacun des engagements pour continuer.'
   }
@@ -1093,6 +1114,7 @@ function validateStep(step: number, values: Values, photo: File | null, commitme
 }
 
 function CandidatureForm({ onBack }: { onBack: () => void }) {
+  const { quiz, reflectionPrompt } = useContestData()
   const [step, setStep] = useState(0)
   const [values, setValues] = useState<Values>({ country: 'Côte d’Ivoire' })
   const [errors, setErrors] = useState<Values>({})
@@ -1159,7 +1181,7 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
   }
 
   function next() {
-    const stepErrors = validateStep(step, values, photo, commitments)
+    const stepErrors = validateStep(step, values, photo, commitments, quiz.length)
     setErrors(stepErrors)
     if (Object.keys(stepErrors).length) return
     setStep((current) => Math.min(current + 1, STEPS.length - 1))
@@ -1179,7 +1201,7 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
       return
     }
     for (let index = 0; index < STEPS.length; index += 1) {
-      const stepErrors = validateStep(index, values, photo, commitments)
+      const stepErrors = validateStep(index, values, photo, commitments, quiz.length)
       if (Object.keys(stepErrors).length) {
         setStep(index)
         setErrors(stepErrors)
@@ -1289,10 +1311,10 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
             Devenir candidat
           </h1>
           <p className="mt-4 max-w-2xl leading-relaxed text-white/75">
-            Quatre étapes, une dizaine de minutes. Les champs marqués d’un astérisque sont
+            Cinq étapes, une vingtaine de minutes. Les champs marqués d’un astérisque sont
             obligatoires. Votre téléphone et votre e-mail ne seront jamais publiés.
           </p>
-          <ol className="mt-9 grid grid-cols-4 gap-2" aria-label="Progression">
+          <ol className="mt-9 grid grid-cols-5 gap-2" aria-label="Progression">
             {STEPS.map((item, index) => (
               <li key={item.title}>
                 <div
@@ -1482,6 +1504,81 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
             <>
               <StepHeading
                 index={3}
+                title="Épreuve de sélection"
+                text="Un QCM sur Luc 15 et une courte réflexion. Ils servent à retenir automatiquement les meilleures candidatures : prenez votre temps."
+              />
+              <div className="grid gap-5">
+                {quiz.map((item, questionIndex) => {
+                  const name = `quiz_${questionIndex}`
+                  return (
+                    <fieldset
+                      key={name}
+                      className={`grid gap-3 rounded-2xl border bg-white p-4 sm:p-5 ${errors[name] ? 'border-red-400' : 'border-line'}`}
+                    >
+                      <legend className="px-1 text-sm font-bold text-ink">
+                        <span className="text-gold-dark">{questionIndex + 1}.</span> {item.question}
+                      </legend>
+                      <div className="grid gap-2">
+                        {item.options.map((option, optionIndex) => (
+                          <label
+                            key={option}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm transition ${values[name] === String(optionIndex) ? 'border-wine bg-wine/5 text-ink' : 'border-line text-muted hover:border-gold/60'}`}
+                          >
+                            <input
+                              type="radio"
+                              name={name}
+                              value={optionIndex}
+                              checked={values[name] === String(optionIndex)}
+                              onChange={() => update(name, String(optionIndex))}
+                              className="mt-0.5 size-4 shrink-0 accent-wine"
+                            />
+                            <span>{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {errors[name] && (
+                        <span role="alert" className="text-xs font-semibold text-red-700">
+                          {errors[name]}
+                        </span>
+                      )}
+                    </fieldset>
+                  )
+                })}
+              </div>
+              <div className="grid gap-2">
+                <div className="rounded-2xl border border-gold/40 bg-gold-soft p-4 text-sm leading-6 text-ink sm:p-5">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-gold-dark">
+                    Courte réflexion
+                  </p>
+                  <p className="mt-2">{reflectionPrompt}</p>
+                </div>
+                <textarea
+                  className={`min-h-56 w-full resize-y rounded-xl border bg-white px-4 py-3 text-base outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/10 ${errors.reflection ? 'border-red-400' : 'border-line'}`}
+                  value={values.reflection || ''}
+                  onChange={(event) => update('reflection', event.target.value)}
+                  placeholder="Rédigez votre réflexion ici, avec vos propres mots…"
+                  aria-invalid={Boolean(errors.reflection)}
+                />
+                <p className="flex justify-between text-xs text-muted">
+                  <span>
+                    Entre {REFLECTION_MIN_WORDS} et {REFLECTION_MAX_WORDS} mots. Écrivez avec vos propres mots :
+                    la note tient compte de la réflexion personnelle.
+                  </span>
+                  <span className="shrink-0 font-semibold">{countWords(values.reflection || '')} mots</span>
+                </p>
+                {errors.reflection && (
+                  <span role="alert" className="text-xs font-semibold text-red-700">
+                    {errors.reflection}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <StepHeading
+                index={4}
                 title="Engagements et validation"
                 text="Relisez et cochez chacun des engagements pour soumettre votre candidature."
               />

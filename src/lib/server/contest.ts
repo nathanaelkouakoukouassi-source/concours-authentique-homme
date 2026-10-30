@@ -1,5 +1,6 @@
 import config from '@payload-config'
 import { getPayload, type Payload } from 'payload'
+import { DEFAULT_QUIZ, DEFAULT_REFLECTION_PROMPT, type QuizQuestion } from '../quiz'
 
 export type Settings = {
   registrationsOpen?: boolean
@@ -21,6 +22,13 @@ export type Settings = {
   finalistsPublished?: boolean
   finalTopic?: string | null
   laureatesPublished?: boolean
+  registrationClosesAt?: string | null
+  reflectionPrompt?: string | null
+  quizQuestions?: Array<{
+    question?: string
+    options?: Array<{ text?: string }>
+    correctOption?: number
+  }> | null
 }
 
 export type CandidatureDoc = {
@@ -122,4 +130,23 @@ export async function getPublishedCandidates(payload: Payload, settings: Setting
     overrideAccess: true,
   })
   return result.docs as unknown as CandidatureDoc[]
+}
+
+/** Questions du QCM saisies dans le back-office, ou les questions par défaut. */
+export function getQuiz(settings: Settings): QuizQuestion[] {
+  const custom = (settings.quizQuestions || [])
+    .map((item) => ({
+      question: String(item.question || '').trim(),
+      options: (item.options || []).map((option) => String(option.text || '').trim()).filter(Boolean),
+      correct: Number(item.correctOption || 0) - 1,
+    }))
+    .filter(
+      (item) =>
+        item.question && item.options.length >= 2 && item.correct >= 0 && item.correct < item.options.length,
+    )
+  return custom.length ? custom : DEFAULT_QUIZ
+}
+
+export function getReflectionPrompt(settings: Settings) {
+  return settings.reflectionPrompt?.trim() || DEFAULT_REFLECTION_PROMPT
 }

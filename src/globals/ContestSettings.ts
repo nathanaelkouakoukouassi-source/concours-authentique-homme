@@ -55,6 +55,126 @@ export const ContestSettings: GlobalConfig = {
                 },
               ],
             },
+            {
+              name: 'registrationClosesAt',
+              label: 'Clôture automatique des inscriptions',
+              type: 'date',
+              admin: {
+                date: { pickerAppearance: 'dayAndTime', timeFormat: 'HH:mm' },
+                description:
+                  'À cette date, les inscriptions se ferment et la sélection automatique des meilleurs candidats se lance.',
+              },
+            },
+          ],
+        },
+        {
+          label: 'Épreuve et sélection',
+          fields: [
+            {
+              name: 'selectionPanel',
+              type: 'ui',
+              admin: {
+                components: { Field: '/components/admin/SelectionPanel#SelectionPanel' },
+              },
+            },
+            {
+              name: 'autoSelectionEnabled',
+              label: 'Sélection automatique activée',
+              type: 'checkbox',
+              defaultValue: true,
+              admin: {
+                description:
+                  'À la clôture : classement des candidatures conformes (QCM sur 50 + réflexion notée par l’IA sur 50), présélection des meilleures, publication de la liste et envoi des codes d’accès.',
+              },
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'preselectionSize',
+                  label: 'Nombre de candidats retenus',
+                  type: 'number',
+                  defaultValue: 10,
+                  min: 1,
+                  max: 50,
+                },
+                {
+                  name: 'autoPublishList',
+                  label: 'Publier automatiquement la liste',
+                  type: 'checkbox',
+                  defaultValue: true,
+                },
+                {
+                  name: 'autoNotify',
+                  label: 'Envoyer automatiquement les codes d’accès',
+                  type: 'checkbox',
+                  defaultValue: true,
+                },
+              ],
+            },
+            {
+              name: 'selectionStatus',
+              label: 'État de la sélection automatique',
+              type: 'select',
+              defaultValue: 'en-attente',
+              options: [
+                { label: 'En attente de la clôture', value: 'en-attente' },
+                { label: 'En cours', value: 'en-cours' },
+                { label: 'Terminée', value: 'terminee' },
+                { label: 'Erreur (voir le journal)', value: 'erreur' },
+              ],
+              admin: { readOnly: true },
+            },
+            {
+              name: 'selectionRunAt',
+              label: 'Dernière exécution',
+              type: 'date',
+              admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+            },
+            {
+              name: 'selectionLog',
+              label: 'Journal de la sélection',
+              type: 'textarea',
+              admin: { readOnly: true },
+            },
+            {
+              name: 'reflectionPrompt',
+              label: 'Consigne de la courte réflexion',
+              type: 'textarea',
+              admin: {
+                description:
+                  'Laissez vide pour utiliser la consigne par défaut sur Luc 15 : 11-32. Ne la modifiez plus une fois les inscriptions ouvertes.',
+              },
+            },
+            {
+              name: 'quizQuestions',
+              label: 'Questions du QCM',
+              type: 'array',
+              labels: { singular: 'Question', plural: 'Questions' },
+              admin: {
+                description:
+                  'Laissez vide pour utiliser les 10 questions par défaut sur Luc 15. Ne modifiez plus les questions une fois les inscriptions ouvertes : les notes déjà calculées ne changeraient pas.',
+              },
+              fields: [
+                { name: 'question', label: 'Question', type: 'text', required: true },
+                {
+                  name: 'options',
+                  label: 'Réponses proposées',
+                  type: 'array',
+                  minRows: 2,
+                  maxRows: 6,
+                  fields: [{ name: 'text', label: 'Réponse', type: 'text', required: true }],
+                },
+                {
+                  name: 'correctOption',
+                  label: 'Numéro de la bonne réponse (1 = première)',
+                  type: 'number',
+                  required: true,
+                  min: 1,
+                  max: 6,
+                },
+              ],
+            },
           ],
         },
         {

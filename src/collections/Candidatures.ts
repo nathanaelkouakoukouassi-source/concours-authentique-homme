@@ -37,7 +37,7 @@ export const Candidatures: CollectionConfig = {
   admin: {
     group: 'Concours Authentique Homme',
     useAsTitle: 'fullName',
-    defaultColumns: ['candidateNumber', 'fullName', 'churchName', 'status', 'published', 'worksStatus'],
+    defaultColumns: ['candidateNumber', 'fullName', 'status', 'selectionScore', 'selectionRank', 'published'],
     listSearchableFields: ['candidateNumber', 'fullName', 'churchName', 'email', 'phone'],
     description:
       'Dossiers privés des candidats. Filtrez par statut pour retrouver les dossiers conformes, à vérifier ou présélectionnés. Le téléphone et l’e-mail ne sont jamais publiés.',
@@ -263,6 +263,94 @@ export const Candidatures: CollectionConfig = {
               type: 'text',
               access: { read: adminField },
               admin: { readOnly: true },
+            },
+          ],
+        },
+        {
+          label: 'Épreuve de sélection',
+          description:
+            'QCM corrigé automatiquement (sur 50) et courte réflexion notée par l’IA (sur 50). Le total sert à la sélection automatique.',
+          fields: [
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'selectionScore',
+                  label: 'Note de sélection /100',
+                  type: 'number',
+                  index: true,
+                  access: { read: adminField },
+                  admin: { readOnly: true },
+                },
+                {
+                  name: 'quizScore',
+                  label: 'QCM /50',
+                  type: 'number',
+                  access: { read: adminField },
+                  admin: { readOnly: true },
+                },
+                {
+                  name: 'aiScore',
+                  label: 'Réflexion (IA) /50',
+                  type: 'number',
+                  access: { read: adminField },
+                  admin: { readOnly: true },
+                },
+                {
+                  name: 'selectionRank',
+                  label: 'Rang à la sélection',
+                  type: 'number',
+                  access: { read: adminField },
+                  admin: { readOnly: true },
+                },
+              ],
+            },
+            {
+              name: 'reflection',
+              label: 'Courte réflexion du candidat',
+              type: 'textarea',
+              access: { read: adminField },
+              admin: { readOnly: true, rows: 10 },
+            },
+            {
+              name: 'aiFeedback',
+              label: 'Appréciation de l’IA',
+              type: 'textarea',
+              access: { read: adminField },
+              admin: { readOnly: true },
+            },
+            {
+              name: 'aiDetails',
+              label: 'Détail de la note IA',
+              type: 'json',
+              access: { read: adminField },
+              admin: { readOnly: true },
+            },
+            {
+              name: 'quizAnswers',
+              label: 'Réponses au QCM (index des réponses choisies)',
+              type: 'json',
+              access: { read: adminField },
+              admin: { readOnly: true },
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'aiScoredAt',
+                  label: 'Notée par l’IA le',
+                  type: 'date',
+                  access: { read: adminField },
+                  admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+                },
+                {
+                  name: 'aiError',
+                  label: 'Dernière erreur de notation',
+                  type: 'text',
+                  access: { read: adminField },
+                  admin: { readOnly: true },
+                },
+              ],
             },
           ],
         },

@@ -93,6 +93,7 @@ export const REQUIRED_BY_STEP: Array<Array<(typeof TEXT_FIELDS)[number]>> = [
   ['lastName', 'firstName', 'phone', 'email', 'city', 'country'],
   ['isChristian', 'churchName', 'denomination', 'churchCity', 'churchCountry', 'churchRole'],
   ['educationLevel', 'situation'],
+  [], // épreuve de sélection (QCM + réflexion) : contrôlée à part
   [],
 ]
 

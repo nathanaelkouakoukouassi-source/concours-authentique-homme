@@ -1,6 +1,6 @@
 import { put } from '@vercel/blob'
 import { randomInt } from 'crypto'
-import { NextRequest } from 'next/server'
+import { NextRequest, after } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import {
@@ -13,7 +13,18 @@ import {
   normalizePhone,
   type CandidatureData,
 } from '@/lib/candidature-schema'
+import {
+  REFLECTION_MAX_WORDS,
+  REFLECTION_MIN_WORDS,
+  countWords,
+  scoreQuiz,
+} from '@/lib/quiz'
+import { scoreCandidature } from '@/lib/server/ai-scoring'
+import { getQuiz } from '@/lib/server/contest'
 import { sendEmail } from '@/lib/server/email'
+import { registrationsAreOpen } from '@/lib/server/selection'
+
+export const maxDuration = 60
 
 const rateLimits = new Map<string, number[]>()
 const RATE_WINDOW_MS = 15 * 60 * 1000
@@ -141,10 +152,31 @@ export async function POST(request: NextRequest) {
     slug: 'reglages-concours',
     depth: 0,
     overrideAccess: true,
-  })) as { registrationsOpen?: boolean }
-  if (settings.registrationsOpen === false) {
+  })) as Parameters<typeof registrationsAreOpen>[0] & { reflectionPrompt?: string | null }
+  if (!registrationsAreOpen(settings)) {
     return fail('Les inscriptions sont closes.', 403)
   }
+
+  // Épreuve de sélection : QCM corrigé ici (jamais côté navigateur) + courte réflexion.
+  const quiz = getQuiz(settings as never)
+  const quizAnswers = quiz.map((_, index) => {
+    const raw = form.get(`quiz_${index}`)
+    const value = typeof raw === 'string' && raw !== '' ? Number(raw) : NaN
+    return Number.isInteger(value) ? value : null
+  })
+  if (quizAnswers.some((answer) => answer === null)) {
+    return fail('Répondez à toutes les questions du QCM.', 400)
+  }
+  const reflectionRaw = form.get('reflection')
+  const reflection = typeof reflectionRaw === 'string' ? reflectionRaw.trim().slice(0, 4000) : ''
+  const words = countWords(reflection)
+  if (words < REFLECTION_MIN_WORDS || words > REFLECTION_MAX_WORDS) {
+    return fail(
+      `Votre réflexion doit compter entre ${REFLECTION_MIN_WORDS} et ${REFLECTION_MAX_WORDS} mots (actuellement ${words}).`,
+      400,
+    )
+  }
+  const quizScore = scoreQuiz(quiz, quizAnswers)
 
   // Contrôle automatique (§6.1) + détection de doublon évident.
   const issues = checkConformity(data, Boolean(photo))
@@ -182,6 +214,7 @@ export async function POST(request: NextRequest) {
   }
 
   let photoPathname: string | undefined
+  let createdId = ''
   try {
     if (photo) {
       // Stockage privé Vercel Blob : la photo n’est lisible que via /api/concours/photo/<id>.
@@ -194,7 +227,7 @@ export async function POST(request: NextRequest) {
       photoPathname = blob.pathname
     }
 
-    await payload.create({
+    const created = await payload.create({
       collection: 'candidatures',
       data: {
         ...data,
@@ -204,14 +237,26 @@ export async function POST(request: NextRequest) {
         publishEducation: data.publishEducation === 'Oui',
         photoPathname,
         submittedFromIp: ip,
+        quizAnswers,
+        quizScore,
+        reflection,
+        selectionScore: quizScore,
       },
       overrideAccess: true,
     })
+    createdId = String(created.id)
   } catch {
     return fail(
       'L’enregistrement de votre candidature a échoué. Veuillez réessayer dans quelques instants.',
       503,
     )
+  }
+
+  // Notation de la réflexion par l’IA après la réponse (la sélection reprend les oublis).
+  if (createdId && status === 'conforme' && process.env.ANTHROPIC_API_KEY) {
+    after(async () => {
+      await scoreCandidature(payload, createdId)
+    })
   }
 
   // E-mails : la candidature est déjà enregistrée, un échec d’envoi ne la bloque pas.

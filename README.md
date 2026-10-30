@@ -98,7 +98,7 @@ pnpm generate:types    # après une modification des collections
 Tout se pilote depuis `/admin` → **Concours Authentique Homme → Pilotage du concours**.
 
 1. **Inscriptions** : onglet « 1. Inscriptions » (ouvrir/fermer, date limite, âge minimum).
-2. **Présélection** : dans **Candidatures**, passez les 10 retenus au statut *Présélectionné* et cochez *Fiche publique*.
+2. **Présélection automatique** : l’inscription comprend une épreuve (QCM biblique sur 50 + courte réflexion notée par l’IA sur 50). Fixez la *Clôture automatique des inscriptions* (onglet 1) : à cette date, le système ferme les inscriptions, classe les candidatures *Conforme*, présélectionne les 10 meilleures, publie la liste et envoie les codes. Onglet *Épreuve et sélection* : questions du QCM, consigne de la réflexion, compteurs, journal et bouton *Lancer la sélection maintenant*. Nécessite la variable Vercel `ANTHROPIC_API_KEY` (clé API Claude, console.anthropic.com).
 3. **Dossier PDF** : onglet « 2. Présélection et dossier » → *Importer le PDF* (4 Mo max), renseignez la date limite, le WhatsApp officiel et les consignes.
 4. **Codes d’accès** : bouton *Notifier les présélectionnés* — chacun reçoit par e-mail son code pour l’espace candidat (`/espace-candidat`), où il télécharge le dossier.
 5. **Liste publique** : cochez *Publier la liste des candidats présélectionnés*.
