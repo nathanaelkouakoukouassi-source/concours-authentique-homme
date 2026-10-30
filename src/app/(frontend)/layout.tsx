@@ -19,7 +19,12 @@ const description =
   'AUTHENTIQUE HOMME — La Parole de Dieu face aux réalités de l’homme. Concours de réflexion biblique des 3 Jours de Reconnaissance 2026 : inscriptions, sujet, étapes et récompenses.'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : 'http://localhost:3000'),
+  ),
   title,
   description,
   openGraph: {

@@ -36,8 +36,8 @@ Technologies : Next.js 16, Payload 3, MongoDB, Vercel Blob, Resend.
 
 | Nom | Valeur |
 |---|---|
-| `PAYLOAD_SECRET` | une longue chaîne aléatoire (40 caractères ou plus), à garder secrète |
-| `NEXT_PUBLIC_SITE_URL` | l’adresse du site, ex. `https://concours-authentique-homme.vercel.app` (sans `/` final) |
+| `PAYLOAD_SECRET` | facultatif : à défaut, une clé est dérivée automatiquement de `MONGODB_URI` |
+| `NEXT_PUBLIC_SITE_URL` | facultatif : à défaut, l’adresse de production Vercel est utilisée |
 | `NEXT_PUBLIC_MINISTRY_URL` | l’adresse du site du Ministère (facultatif) |
 | `RESEND_API_KEY` | la clé API créée sur [resend.com](https://resend.com) → API Keys |
 | `MINISTRY_FROM_EMAIL` | `Concours Authentique Homme <onboarding@resend.dev>` au départ |
