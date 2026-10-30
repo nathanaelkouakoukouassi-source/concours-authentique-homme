@@ -49,6 +49,7 @@ export type ContestData = {
   cfg: {
     registrationsOpen: boolean
     registrationDeadline: string | null
+    registrationClosesAt?: string | null
     minimumAge: string | null
   }
   voteState: 'a-venir' | 'ouvert' | 'clos' | 'validation' | 'publies'
@@ -82,6 +83,85 @@ const VOTE_LABELS: Record<ContestData['voteState'], string> = {
   clos: 'La période de vote est terminée. Merci pour votre participation.',
   validation: 'Le vote est clos : résultats en cours de validation par le comité.',
   publies: 'Les résultats sont publiés.',
+}
+
+type Phase = 'inscriptions' | 'selection' | 'liste' | 'vote' | 'deliberation' | 'finalistes' | 'laureats'
+
+const PHASES: Array<{ key: Phase; label: string }> = [
+  { key: 'inscriptions', label: 'Inscriptions et QCM' },
+  { key: 'liste', label: 'Les 10 présélectionnés' },
+  { key: 'vote', label: 'Vote du public' },
+  { key: 'deliberation', label: 'Calcul jury + public' },
+  { key: 'finalistes', label: 'Les 3 finalistes' },
+  { key: 'laureats', label: 'Grande finale' },
+]
+
+/** Étape du concours déduite de ce que le comité a publié. */
+function currentPhase(data: ContestData): Phase {
+  if (data.laureates?.length) return 'laureats'
+  if (data.finalists?.length) return 'finalistes'
+  if (!data.candidates.length) return data.cfg.registrationsOpen ? 'inscriptions' : 'selection'
+  if (data.voteState === 'ouvert') return 'vote'
+  if (data.voteState === 'a-venir') return 'liste'
+  return 'deliberation'
+}
+
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return null
+  try {
+    return new Date(iso).toLocaleString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Abidjan',
+    })
+  } catch {
+    return null
+  }
+}
+
+function PhaseStrip() {
+  const data = useContestData()
+  const phase = currentPhase(data)
+  const activeIndex = PHASES.findIndex((item) => item.key === (phase === 'selection' ? 'inscriptions' : phase))
+  const closes = formatDate(data.cfg.registrationClosesAt)
+  const messages: Record<Phase, string> = {
+    inscriptions: closes
+      ? `Les inscriptions sont ouvertes jusqu’au ${closes}.`
+      : 'Les inscriptions sont ouvertes.',
+    selection: 'Les inscriptions sont closes : classement de l’épreuve en cours.',
+    liste: 'Les 10 présélectionnés sont connus. Le vote du public ouvrira prochainement.',
+    vote: 'Le vote du public est ouvert : découvrez les candidats et votez !',
+    deliberation: 'Le vote est clos : calcul des résultats (jury 80 % + public 20 %).',
+    finalistes: 'Les 3 finalistes sont annoncés. Rendez-vous à la grande finale !',
+    laureats: 'Les lauréats sont proclamés. Merci à tous !',
+  }
+  return (
+    <section className="border-b border-line bg-cream px-5 py-6 sm:px-6">
+      <div className="mx-auto max-w-7xl">
+        <p className="text-center text-sm font-bold text-wine sm:text-base">
+          <span className="mr-2 text-xs font-extrabold uppercase tracking-[0.2em] text-gold-dark">
+            En ce moment
+          </span>
+          {messages[phase]}
+        </p>
+        <ol className="mx-auto mt-4 grid max-w-5xl grid-cols-3 gap-2 sm:grid-cols-6" aria-label="Étapes du concours">
+          {PHASES.map((item, index) => (
+            <li
+              key={item.key}
+              aria-current={index === activeIndex ? 'step' : undefined}
+              className={`rounded-xl px-2 py-2 text-center text-[0.7rem] font-bold leading-tight sm:text-xs ${index === activeIndex ? 'bg-wine text-white' : index < activeIndex ? 'bg-white text-wine' : 'bg-white/60 text-muted/70'}`}
+            >
+              <span className="block text-[0.65rem] opacity-70">{index + 1}</span>
+              {item.label}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  )
 }
 
 function CandidatePhoto({ card, className }: { card: PublicCard; className?: string }) {
@@ -457,6 +537,8 @@ function ContestHome({ onApply }: { onApply: () => void }) {
         </div>
       </section>
 
+      <PhaseStrip />
+
       {/* Sous-navigation */}
       <nav
         aria-label="Sections du concours"
@@ -764,18 +846,38 @@ function ContestHome({ onApply }: { onApply: () => void }) {
       {/* Candidats */}
       <section id="candidats" className="scroll-mt-36 bg-white px-5 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto max-w-7xl">
-          <SectionIntro eyebrow="Les candidats" title="Découvrez les candidats Authentique Homme" center>
-            <p>
-              Dix candidats, une même ambition : démontrer comment la Parole de Dieu peut apporter
-              des réponses concrètes aux réalités de l’homme. Découvrez leurs réflexions et
-              participez à la sélection des finalistes.
+          {candidates.length > 0 ? (
+            <SectionIntro eyebrow="Les présélectionnés" title="Découvrez les candidats Authentique Homme" center>
+              <p>
+                Dix candidats, une même ambition : démontrer comment la Parole de Dieu peut apporter
+                des réponses concrètes aux réalités de l’homme.
+                {voteState === 'ouvert'
+                  ? ' Découvrez leurs réflexions et votez pour désigner, avec le jury, les trois finalistes.'
+                  : ' Découvrez leurs profils et leurs réflexions.'}
+              </p>
+            </SectionIntro>
+          ) : (
+            <SectionIntro eyebrow="Les présélectionnés" title="Les 10 présélectionnés seront dévoilés ici" center>
+              <p>
+                {cfg.registrationsOpen
+                  ? `À la clôture des inscriptions${formatDate(cfg.registrationClosesAt) ? `, le ${formatDate(cfg.registrationClosesAt)},` : ''} les dix meilleures candidatures à l’épreuve de sélection (QCM biblique et courte réflexion) seront publiées ici.`
+                  : 'Les inscriptions sont closes : le classement de l’épreuve de sélection est en cours et la liste sera publiée ici très bientôt.'}
+              </p>
+            </SectionIntro>
+          )}
+          {candidates.length > 0 && (
+            <p
+              className={`mx-auto mt-8 max-w-xl rounded-full px-5 py-3 text-center text-sm font-bold ${voteState === 'ouvert' ? 'bg-gold text-wine-dark' : 'bg-cream text-wine'}`}
+            >
+              {voteState === 'a-venir'
+                ? 'Le vote du public ouvrira prochainement.'
+                : voteState === 'ouvert'
+                  ? VOTE_LABELS.ouvert
+                  : finalists?.length
+                    ? 'Le vote est clos : les trois finalistes sont annoncés ci-dessous.'
+                    : 'Le vote est clos : calcul des résultats (jury 80 % + public 20 %) en cours.'}
             </p>
-          </SectionIntro>
-          <p
-            className={`mx-auto mt-8 max-w-xl rounded-full px-5 py-3 text-center text-sm font-bold ${voteState === 'ouvert' ? 'bg-gold text-wine-dark' : 'bg-cream text-wine'}`}
-          >
-            {VOTE_LABELS[voteState]}
-          </p>
+          )}
           {candidates.length > 0 ? (
             <div className="mx-auto mt-10 grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {candidates.map((card) => (
@@ -816,12 +918,11 @@ function ContestHome({ onApply }: { onApply: () => void }) {
                 ))}
               </div>
               <p className="mx-auto mt-8 max-w-xl text-center text-sm leading-6 text-muted">
-                La liste des dix présélectionnés sera publiée ici par le comité. Les candidats
-                retenus reçoivent par e-mail un code pour accéder à leur{' '}
+                Les candidats retenus reçoivent par e-mail un code pour accéder à leur{' '}
                 <Link href="/espace-candidat" className="font-semibold text-wine underline decoration-gold underline-offset-4">
                   espace candidat
                 </Link>
-                .
+                {' '}et y télécharger leur dossier. Le vote du public s’ouvrira ensuite.
               </p>
             </>
           )}

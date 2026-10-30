@@ -75,6 +75,7 @@ export default async function HomePage() {
       cfg: {
         registrationsOpen: registrationsAreOpen(settings as never),
         registrationDeadline: settings.registrationDeadline || null,
+        registrationClosesAt: settings.registrationClosesAt || null,
         minimumAge: settings.minimumAge || null,
       },
       voteState: voteState(settings),
