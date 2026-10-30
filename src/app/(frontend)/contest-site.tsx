@@ -902,16 +902,16 @@ function ContestHome({ onApply }: { onApply: () => void }) {
             </div>
           ) : (
             <>
-              <div className="mx-auto mt-11 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="mx-auto mt-10 grid max-w-3xl grid-cols-5 gap-2 sm:gap-4">
                 {Array.from({ length: 10 }).map((_, index) => (
                   <div
                     key={index}
-                    className="flex aspect-[3/4] flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-cream text-center"
+                    className="flex aspect-square flex-col items-center justify-center rounded-xl border border-dashed border-line bg-cream text-center sm:rounded-2xl"
                   >
-                    <span className="grid size-14 place-items-center rounded-full bg-white font-serif text-2xl font-semibold text-gold/60">
+                    <span className="font-serif text-xl font-semibold text-gold/60 sm:text-3xl">
                       {String(index + 1).padStart(2, '0')}
                     </span>
-                    <span className="mt-3 px-3 text-xs font-bold uppercase tracking-wider text-muted/70">
+                    <span className="mt-1 hidden text-[0.65rem] font-bold uppercase tracking-wider text-muted/70 sm:block">
                       À dévoiler
                     </span>
                   </div>
