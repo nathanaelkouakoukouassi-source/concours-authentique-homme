@@ -236,6 +236,23 @@ export const ContestSettings: GlobalConfig = {
               type: 'textarea',
             },
             {
+              type: 'row',
+              fields: [
+                {
+                  name: 'worksUploadOpen',
+                  label: 'Dépôt des travaux ouvert dans l’espace candidat',
+                  type: 'checkbox',
+                  defaultValue: true,
+                },
+                {
+                  name: 'worksClosesAt',
+                  label: 'Fermeture automatique du dépôt (facultatif)',
+                  type: 'date',
+                  admin: { date: { pickerAppearance: 'dayAndTime', timeFormat: 'HH:mm' } },
+                },
+              ],
+            },
+            {
               name: 'notifyPreselected',
               type: 'ui',
               admin: {

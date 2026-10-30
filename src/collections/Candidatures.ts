@@ -357,8 +357,39 @@ export const Candidatures: CollectionConfig = {
         {
           label: 'Travaux',
           description:
-            'Travaux reçus par WhatsApp. Pour la vidéo, mettez-la sur YouTube en « non répertoriée » et collez le lien.',
+            'Travaux déposés par le candidat dans son espace (ou reçus par WhatsApp). Pour l’affichage public, mettez la vidéo sur YouTube en « non répertoriée » et collez le lien ci-dessous.',
           fields: [
+            {
+              name: 'worksFiles',
+              type: 'ui',
+              admin: { components: { Field: '/components/admin/WorksFiles#WorksFiles' } },
+            },
+            ...(['video', 'pdf'] as const).flatMap((kind) => [
+              {
+                name: `${kind}Pathname`,
+                type: 'text' as const,
+                access: { read: adminField },
+                admin: { hidden: true },
+              },
+              {
+                name: `${kind}Size`,
+                type: 'number' as const,
+                access: { read: adminField },
+                admin: { hidden: true },
+              },
+              {
+                name: `${kind}Filename`,
+                type: 'text' as const,
+                access: { read: adminField },
+                admin: { hidden: true },
+              },
+              {
+                name: `${kind}UploadedAt`,
+                type: 'date' as const,
+                access: { read: adminField },
+                admin: { hidden: true },
+              },
+            ]),
             {
               name: 'worksStatus',
               label: 'Statut des travaux',

@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { SiteFrame } from '../contest-site'
 import { LoginForm, LogoutButton } from './forms'
+import { WorksUpload } from './works-upload'
+import { type CandidateWithWorks, worksUploadIsOpen } from '@/lib/server/works'
 import { type CandidatureDoc, getSettings, payloadClient } from '@/lib/server/contest'
 import { computePreselectionRanking } from '@/lib/server/results'
 import { CANDIDATE_COOKIE, readCandidateSession } from '@/lib/server/security'
@@ -24,7 +26,7 @@ async function loadSession() {
       id: candidateId,
       depth: 0,
       overrideAccess: true,
-    })) as unknown as CandidatureDoc
+    })) as unknown as CandidateWithWorks
     if (candidate.status !== 'preselectionne') return null
     const settings = await getSettings(payload)
     let isFinalist = false
@@ -159,21 +161,40 @@ export default async function CandidateSpacePage() {
               <InfoRow label="WhatsApp officiel du concours" value={settings.whatsappNumber} />
             </article>
 
-            <article className="rounded-[2rem] border border-gold/40 bg-gold-soft p-6 sm:p-9">
+            <article id="travaux" className="rounded-[2rem] border border-gold/40 bg-gold-soft p-6 sm:p-9">
               <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-gold-dark">
-                Comment transmettre vos travaux
+                Déposer mes travaux
               </p>
+              <h2 className="mt-3 font-serif text-3xl font-semibold text-wine">
+                Votre vidéo et votre document écrit
+              </h2>
               <p className="mt-3 leading-7 text-muted">
-                Envoyez votre vidéo (5 minutes maximum) et votre document PDF au numéro WhatsApp
-                officiel avec ce message :
+                Déposez vos deux fichiers directement ici : ils sont transmis au comité de façon
+                privée. Vous pouvez remplacer un fichier jusqu’à la date limite
+                {settings.submissionDeadline ? ` (${settings.submissionDeadline})` : ''}. Restez sur
+                cette page pendant l’envoi, de préférence en Wi-Fi.
               </p>
-              <pre className="mt-4 whitespace-pre-wrap rounded-2xl bg-white p-4 text-sm leading-6 text-ink">
-{`AUTHENTIQUE HOMME — Soumission de travail
-Nom et prénoms : ${candidate.firstName || ''} ${candidate.lastName || ''}
-Numéro de candidature : ${candidate.candidateNumber}
-+ Vidéo de présentation
-+ Document écrit PDF`}
-              </pre>
+              <WorksUpload
+                candidateNumber={candidate.candidateNumber}
+                open={worksUploadIsOpen(settings as never)}
+                video={{
+                  size: candidate.videoSize,
+                  uploadedAt: candidate.videoUploadedAt,
+                  filename: candidate.videoFilename,
+                }}
+                pdf={{
+                  size: candidate.pdfSize,
+                  uploadedAt: candidate.pdfUploadedAt,
+                  filename: candidate.pdfFilename,
+                }}
+              />
+              {settings.whatsappNumber && (
+                <p className="mt-5 text-xs leading-5 text-muted">
+                  Un problème pour envoyer ? Contactez le comité sur WhatsApp au{' '}
+                  <strong className="text-ink">{settings.whatsappNumber}</strong> en indiquant votre
+                  numéro de candidature.
+                </p>
+              )}
             </article>
           </div>
         </section>

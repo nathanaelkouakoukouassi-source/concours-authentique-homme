@@ -1214,6 +1214,27 @@ function validateStep(
   return errors
 }
 
+/** Redimensionne la photo (1200 px max, JPEG) avant l’envoi. Renvoie l’original en cas d’échec. */
+async function compressPhoto(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    const context = canvas.getContext('2d')
+    if (!context) return file
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.85),
+    )
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.[a-z0-9]+$/i, '') + '.jpg', { type: 'image/jpeg' })
+  } catch {
+    return file
+  }
+}
+
 function CandidatureForm({ onBack }: { onBack: () => void }) {
   const { quiz, reflectionPrompt } = useContestData()
   const [step, setStep] = useState(0)
@@ -1247,15 +1268,17 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
     })
   }
 
-  function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] || null
-    if (!file) return
-    if (!PHOTO_TYPES.includes(file.type)) {
+  async function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const original = event.target.files?.[0] || null
+    if (!original) return
+    if (!PHOTO_TYPES.includes(original.type)) {
       setErrors((current) => ({ ...current, photo: 'Formats acceptés : JPG, PNG ou WEBP.' }))
       return
     }
+    // Compression dans le navigateur : envoi plus rapide et stockage gratuit préservé.
+    const file = await compressPhoto(original)
     if (file.size > PHOTO_MAX_BYTES) {
-      setErrors((current) => ({ ...current, photo: 'La photo ne doit pas dépasser 4 Mo.' }))
+      setErrors((current) => ({ ...current, photo: 'La photo est trop lourde : choisissez-en une autre.' }))
       return
     }
     setPhoto(file)
@@ -1485,7 +1508,7 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
                       <input type="file" accept={PHOTO_TYPES.join(',')} className="sr-only" onChange={handlePhoto} />
                     </label>
                     <p className="mt-2 text-xs font-normal leading-5 text-muted">
-                      Photo récente, visage bien visible. JPG, PNG ou WEBP, 4 Mo maximum. Elle sera
+                      Photo récente, visage bien visible. JPG, PNG ou WEBP. Elle est automatiquement allégée avant l’envoi. Elle sera
                       publiée si vous êtes présélectionné(e).
                     </p>
                   </div>
