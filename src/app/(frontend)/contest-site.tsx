@@ -2,7 +2,15 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { ChangeEvent, FormEvent, ReactNode, useEffect, useState } from 'react'
+import {
+  ChangeEvent,
+  FormEvent,
+  ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 import {
   CHURCH_ROLES,
   COMMITMENTS,
@@ -20,14 +28,74 @@ import {
 /* ------------------------------------------------------------------ */
 const MINISTRY_URL = process.env.NEXT_PUBLIC_MINISTRY_URL || ''
 
-const CONTEST_CONFIG = {
-  registrationsOpen: true,
-  /** Ex. « 30 novembre 2026 ». Laisser null tant que la date n’est pas fixée. */
-  registrationDeadline: null as string | null,
-  /** Ex. « 18 ans ». Laisser null tant que l’âge minimum n’est pas fixé. */
-  minimumAge: null as string | null,
-  /** Les candidats seront publiés après validation de leurs travaux. */
-  candidatesPublished: false,
+/* Données fournies par le serveur (réglages du back-office, candidats et résultats publiés). */
+export type PublicCard = {
+  id: string
+  fullName: string
+  churchName: string
+  churchRole: string
+  hasPhoto: boolean
+}
+
+export type ResultRow = PublicCard & {
+  rank: number
+  votePercent: number
+  juryScore: number | null
+  finalScore: number
+}
+
+export type ContestData = {
+  cfg: {
+    registrationsOpen: boolean
+    registrationDeadline: string | null
+    minimumAge: string | null
+  }
+  voteState: 'a-venir' | 'ouvert' | 'clos' | 'validation' | 'publies'
+  candidates: PublicCard[]
+  results: ResultRow[] | null
+  showJuryScore: boolean
+  finalists: PublicCard[] | null
+  laureates: (PublicCard & { rank: number })[] | null
+}
+
+const defaultData: ContestData = {
+  cfg: { registrationsOpen: true, registrationDeadline: null, minimumAge: null },
+  voteState: 'a-venir',
+  candidates: [],
+  results: null,
+  showJuryScore: true,
+  finalists: null,
+  laureates: null,
+}
+
+const ContestDataContext = createContext<ContestData>(defaultData)
+const useContestData = () => useContext(ContestDataContext)
+
+const VOTE_LABELS: Record<ContestData['voteState'], string> = {
+  'a-venir': 'Le vote du public n’est pas encore ouvert.',
+  ouvert: 'Le vote du public est ouvert : choisissez votre candidat !',
+  clos: 'La période de vote est terminée. Merci pour votre participation.',
+  validation: 'Le vote est clos : résultats en cours de validation par le comité.',
+  publies: 'Les résultats sont publiés.',
+}
+
+function CandidatePhoto({ card, className }: { card: PublicCard; className?: string }) {
+  if (!card.hasPhoto) {
+    return (
+      <div className={`grid place-items-center bg-wine/10 font-serif text-4xl text-wine ${className || ''}`}>
+        {card.fullName.slice(0, 1)}
+      </div>
+    )
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/concours/photo/${card.id}`}
+      alt={`Photo de ${card.fullName}`}
+      loading="lazy"
+      className={`object-cover ${className || ''}`}
+    />
+  )
 }
 
 type View = 'home' | 'form'
@@ -193,6 +261,7 @@ function SectionIntro({
 }
 
 function Header({ onApply }: { onApply: () => void }) {
+  const { cfg } = useContestData()
   return (
     <header className="liquid-nav sticky top-0 z-50 border-b border-white/10 px-3 text-white sm:px-6">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3">
@@ -201,11 +270,18 @@ function Header({ onApply }: { onApply: () => void }) {
         </Link>
         <nav aria-label="Navigation principale" className="flex items-center gap-2">
           <a
-            href="#reglement"
+            href="/#candidats"
             className="hidden rounded-full border border-white/25 px-5 py-2.5 text-sm font-bold transition hover:border-gold hover:bg-white/10 md:block"
           >
-            Règlement
+            Candidats
           </a>
+          <Link
+            href="/espace-candidat"
+            className="rounded-full border border-white/25 px-3 py-2.5 text-sm font-bold transition hover:border-gold hover:bg-white/10 sm:px-5"
+          >
+            <span className="sm:hidden">Espace</span>
+            <span className="hidden sm:inline">Espace candidat</span>
+          </Link>
           {MINISTRY_URL && (
             <a
               href={MINISTRY_URL}
@@ -217,7 +293,7 @@ function Header({ onApply }: { onApply: () => void }) {
           <button
             type="button"
             onClick={onApply}
-            disabled={!CONTEST_CONFIG.registrationsOpen}
+            disabled={!cfg.registrationsOpen}
             className="rounded-full bg-gold px-4 py-2.5 text-sm font-extrabold text-wine-dark transition hover:bg-gold-light disabled:opacity-60 sm:px-5"
           >
             Devenir candidat
@@ -278,6 +354,8 @@ const sectionLinks = [
 ]
 
 function ContestHome({ onApply }: { onApply: () => void }) {
+  const { cfg, candidates, voteState, results, showJuryScore, finalists, laureates } =
+    useContestData()
   return (
     <main>
       {/* Hero */}
@@ -313,10 +391,10 @@ function ContestHome({ onApply }: { onApply: () => void }) {
               <button
                 type="button"
                 onClick={onApply}
-                disabled={!CONTEST_CONFIG.registrationsOpen}
+                disabled={!cfg.registrationsOpen}
                 className="min-h-14 rounded-full bg-gold px-7 py-4 text-sm font-extrabold uppercase tracking-wider text-wine-dark shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-gold-light disabled:opacity-60"
               >
-                {CONTEST_CONFIG.registrationsOpen ? 'Devenir candidat' : 'Inscriptions closes'}
+                {cfg.registrationsOpen ? 'Devenir candidat' : 'Inscriptions closes'}
               </button>
               <a
                 href="#candidats"
@@ -327,8 +405,8 @@ function ContestHome({ onApply }: { onApply: () => void }) {
             </div>
             <p className="mt-6 text-sm text-white/60">
               Organisé par le Ministère Porteur d’Amour
-              {CONTEST_CONFIG.registrationDeadline &&
-                ` · Inscriptions jusqu’au ${CONTEST_CONFIG.registrationDeadline}`}
+              {cfg.registrationDeadline &&
+                ` · Inscriptions jusqu’au ${cfg.registrationDeadline}`}
             </p>
           </div>
 
@@ -633,8 +711,8 @@ function ContestHome({ onApply }: { onApply: () => void }) {
                   'Fournir ses informations personnelles et ses coordonnées',
                   'Accepter le règlement',
                   'Certifier l’exactitude des informations',
-                  ...(CONTEST_CONFIG.minimumAge
-                    ? [`Avoir au moins ${CONTEST_CONFIG.minimumAge}`]
+                  ...(cfg.minimumAge
+                    ? [`Avoir au moins ${cfg.minimumAge}`]
                     : []),
                 ].map((item) => (
                   <li key={item} className="flex gap-3">
@@ -643,7 +721,7 @@ function ContestHome({ onApply }: { onApply: () => void }) {
                   </li>
                 ))}
               </ul>
-              {!CONTEST_CONFIG.registrationDeadline && (
+              {!cfg.registrationDeadline && (
                 <p className="mt-5 text-xs leading-5 text-muted">
                   Le calendrier détaillé (clôture des inscriptions, vote, finale) sera communiqué
                   par le comité d’organisation.
@@ -687,29 +765,149 @@ function ContestHome({ onApply }: { onApply: () => void }) {
               participez à la sélection des finalistes.
             </p>
           </SectionIntro>
-          {!CONTEST_CONFIG.candidatesPublished && (
-            <div className="mx-auto mt-11 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              {Array.from({ length: 10 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="flex aspect-[3/4] flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-cream text-center"
+          <p
+            className={`mx-auto mt-8 max-w-xl rounded-full px-5 py-3 text-center text-sm font-bold ${voteState === 'ouvert' ? 'bg-gold text-wine-dark' : 'bg-cream text-wine'}`}
+          >
+            {VOTE_LABELS[voteState]}
+          </p>
+          {candidates.length > 0 ? (
+            <div className="mx-auto mt-10 grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {candidates.map((card) => (
+                <article
+                  key={card.id}
+                  className="liquid-card group flex flex-col overflow-hidden rounded-[1.75rem] border border-line transition hover:-translate-y-1 hover:border-gold/60"
                 >
-                  <span className="grid size-14 place-items-center rounded-full bg-white font-serif text-2xl font-semibold text-gold/60">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="mt-3 px-3 text-xs font-bold uppercase tracking-wider text-muted/70">
-                    À dévoiler
-                  </span>
+                  <CandidatePhoto card={card} className="aspect-[4/5] w-full" />
+                  <div className="flex flex-1 flex-col p-5">
+                    <h3 className="font-serif text-2xl font-semibold text-wine">{card.fullName}</h3>
+                    <p className="mt-1 text-sm font-semibold text-ink">{card.churchName}</p>
+                    <p className="text-sm text-muted">{card.churchRole}</p>
+                    <Link
+                      href={`/candidats/${card.id}`}
+                      className="mt-5 rounded-full bg-wine px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-white transition hover:bg-wine-dark"
+                    >
+                      {voteState === 'ouvert' ? 'Découvrir et voter' : 'Découvrir sa réflexion'}
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="mx-auto mt-11 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                {Array.from({ length: 10 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex aspect-[3/4] flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-cream text-center"
+                  >
+                    <span className="grid size-14 place-items-center rounded-full bg-white font-serif text-2xl font-semibold text-gold/60">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="mt-3 px-3 text-xs font-bold uppercase tracking-wider text-muted/70">
+                      À dévoiler
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="mx-auto mt-8 max-w-xl text-center text-sm leading-6 text-muted">
+                La liste des dix présélectionnés sera publiée ici par le comité. Les candidats
+                retenus reçoivent par e-mail un code pour accéder à leur{' '}
+                <Link href="/espace-candidat" className="font-semibold text-wine underline decoration-gold underline-offset-4">
+                  espace candidat
+                </Link>
+                .
+              </p>
+            </>
+          )}
+        </div>
+      </section>
+
+      {laureates && laureates.length > 0 && (
+        <section id="laureats" className="scroll-mt-36 bg-gold px-5 py-16 text-wine-dark sm:px-6 sm:py-24">
+          <div className="mx-auto max-w-6xl text-center">
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em]">Grande finale</p>
+            <h2 className="mt-3 font-serif text-4xl font-semibold sm:text-6xl">Les lauréats Authentique Homme</h2>
+            <div className="mt-11 grid gap-5 md:grid-cols-3">
+              {laureates.map((card) => (
+                <article key={card.id} className="overflow-hidden rounded-[2rem] bg-white text-left shadow-xl shadow-wine/10">
+                  <CandidatePhoto card={card} className="aspect-[4/3] w-full" />
+                  <div className="p-6">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-gold-dark">
+                      {card.rank === 1 ? '1er prix — 100 000 FCFA' : card.rank === 2 ? '2e prix — 50 000 FCFA' : '3e prix — 30 000 FCFA'}
+                    </p>
+                    <h3 className="mt-2 font-serif text-3xl font-semibold text-wine">{card.fullName}</h3>
+                    <p className="mt-1 text-sm text-muted">{card.churchName}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {finalists && finalists.length > 0 && (
+        <section id="finalistes" className="brand-hero scroll-mt-36 px-5 py-16 text-white sm:px-6 sm:py-24">
+          <div className="mx-auto max-w-6xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">Annonce officielle</p>
+            <h2 className="mt-3 font-serif text-4xl font-semibold sm:text-6xl">Ils sont les trois finalistes !</h2>
+            <div className="mt-11 grid gap-5 md:grid-cols-3">
+              {finalists.map((card, index) => (
+                <article key={card.id} className="liquid-glass overflow-hidden rounded-[2rem] border border-white/15 text-left">
+                  <CandidatePhoto card={card} className="aspect-[4/3] w-full" />
+                  <div className="p-6">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-light">{index + 1}{index === 0 ? 'er' : 'e'} de la présélection</p>
+                    <h3 className="mt-2 font-serif text-3xl font-semibold">{card.fullName}</h3>
+                    <p className="mt-1 text-sm text-white/70">{card.churchName}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="mx-auto mt-8 max-w-2xl text-white/75">
+              Rendez-vous à la grande finale, pendant la conférence Authentique Homme des 3 Jours de
+              Reconnaissance.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {results && results.length > 0 && (
+        <section id="resultats" className="scroll-mt-36 bg-cream px-5 py-16 sm:px-6 sm:py-24">
+          <div className="mx-auto max-w-5xl">
+            <SectionIntro eyebrow="Résultats de la présélection" title="Le classement officiel." center>
+              <p>
+                Score final sur 100 = note du jury × 0,80 + part du vote public × 0,20. La part du
+                vote public est le pourcentage des votes valides obtenus par le candidat : ce n’est
+                pas son score final.
+              </p>
+            </SectionIntro>
+            <div className="mt-10 overflow-hidden rounded-[1.75rem] border border-line bg-white">
+              {results.map((row) => (
+                <div
+                  key={row.id}
+                  className={`flex items-center gap-4 border-b border-line p-4 last:border-b-0 sm:p-5 ${row.rank <= 3 ? 'bg-gold-soft/60' : ''}`}
+                >
+                  <span className="w-8 shrink-0 text-center font-serif text-3xl font-semibold text-wine">{row.rank}</span>
+                  <CandidatePhoto card={row} className="size-14 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-ink">{row.fullName}</p>
+                    <p className="truncate text-sm text-muted">{row.churchName}</p>
+                  </div>
+                  <div className="hidden text-right text-xs text-muted sm:block">
+                    <p>Public : <strong className="text-ink">{row.votePercent} %</strong></p>
+                    {showJuryScore && row.juryScore !== null && (
+                      <p>Jury : <strong className="text-ink">{row.juryScore}/100</strong></p>
+                    )}
+                  </div>
+                  <div className="shrink-0 rounded-2xl bg-wine px-3 py-2 text-center text-white">
+                    <p className="font-serif text-2xl font-semibold leading-none">{row.finalScore}</p>
+                    <p className="text-[0.6rem] uppercase tracking-wider text-white/70">/100</p>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
-          <p className="mx-auto mt-8 max-w-xl text-center text-sm leading-6 text-muted">
-            Les profils, vidéos et travaux des dix présélectionnés seront publiés ici après
-            validation du comité. Le vote du public ouvrira à la date annoncée.
-          </p>
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* Appel final */}
       <section className="brand-hero px-5 py-16 text-center text-white sm:px-6 sm:py-24">
@@ -724,7 +922,7 @@ function ContestHome({ onApply }: { onApply: () => void }) {
           <button
             type="button"
             onClick={onApply}
-            disabled={!CONTEST_CONFIG.registrationsOpen}
+            disabled={!cfg.registrationsOpen}
             className="mt-9 min-h-14 rounded-full bg-gold px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-wine-dark transition hover:-translate-y-0.5 hover:bg-gold-light disabled:opacity-60"
           >
             Je dépose ma candidature
@@ -1372,17 +1570,18 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
 
 /* ------------------------------------------------------------------ */
 
-export function ContestSite() {
+export function ContestSite({ data = defaultData }: { data?: ContestData }) {
   const [view, setView] = useState<View>('home')
+  const cfg = data.cfg
 
   useEffect(() => {
-    if (window.location.hash === '#inscription' && CONTEST_CONFIG.registrationsOpen) {
+    if (window.location.hash === '#inscription' && cfg.registrationsOpen) {
       setView('form')
     }
-  }, [])
+  }, [cfg.registrationsOpen])
 
   function openForm() {
-    if (!CONTEST_CONFIG.registrationsOpen) return
+    if (!cfg.registrationsOpen) return
     setView('form')
     window.history.replaceState(null, '', '#inscription')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1395,9 +1594,46 @@ export function ContestSite() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-ink">
-      <Header onApply={openForm} />
-      {view === 'form' ? <CandidatureForm onBack={backToContest} /> : <ContestHome onApply={openForm} />}
+    <ContestDataContext.Provider value={data}>
+      <div className="min-h-screen overflow-x-hidden bg-white text-ink">
+        <Header onApply={openForm} />
+        {view === 'form' ? (
+          <CandidatureForm onBack={backToContest} />
+        ) : (
+          <ContestHome onApply={openForm} />
+        )}
+        <Footer />
+      </div>
+    </ContestDataContext.Provider>
+  )
+}
+
+/** En-tête et pied de page réutilisés par les pages fiche candidat et espace candidat. */
+export function SiteFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-cream text-ink">
+      <header className="liquid-nav sticky top-0 z-50 border-b border-white/10 px-3 text-white sm:px-6">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3">
+          <Link href="/" aria-label="Accueil du concours Authentique Homme">
+            <MinistryLogo />
+          </Link>
+          <nav aria-label="Navigation principale" className="flex items-center gap-2">
+            <Link
+              href="/#candidats"
+              className="rounded-full border border-white/25 px-4 py-2.5 text-sm font-bold transition hover:border-gold hover:bg-white/10"
+            >
+              Candidats
+            </Link>
+            <Link
+              href="/espace-candidat"
+              className="rounded-full bg-gold px-4 py-2.5 text-sm font-extrabold text-wine-dark transition hover:bg-gold-light"
+            >
+              Espace candidat
+            </Link>
+          </nav>
+        </div>
+      </header>
+      {children}
       <Footer />
     </div>
   )

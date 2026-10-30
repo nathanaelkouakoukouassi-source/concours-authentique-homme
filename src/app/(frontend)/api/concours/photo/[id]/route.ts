@@ -1,44 +1,56 @@
 import { get } from '@vercel/blob'
 import { NextRequest } from 'next/server'
-import { getPayload } from 'payload'
-import config from '@payload-config'
+import { isAdminUser, isJuryUser } from '@/lib/access'
+import { type CandidatureDoc, getSettings, payloadClient } from '@/lib/server/contest'
 
 /**
- * Sert la photo privée d’un candidat, uniquement à un membre du comité connecté au back-office.
+ * Photo d’un candidat, stockée en privé.
+ * Publique uniquement pour un candidat présélectionné dont la fiche est publiée
+ * (et la liste publiée) ; sinon réservée au comité et au jury connectés.
  */
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
-  const payload = await getPayload({ config })
+  const payload = await payloadClient()
 
-  const { user } = await payload.auth({ headers: request.headers })
-  if (!user || user.collection !== 'users') {
-    return new Response('Accès réservé au comité.', { status: 401 })
-  }
-
-  let pathname: string | undefined
+  let candidate: CandidatureDoc
   try {
-    const candidature = (await payload.findByID({
+    candidate = (await payload.findByID({
       collection: 'candidatures',
       id,
       depth: 0,
       overrideAccess: true,
-    })) as { photoPathname?: string }
-    pathname = candidature.photoPathname
+    })) as unknown as CandidatureDoc
   } catch {
     return new Response('Candidature introuvable.', { status: 404 })
   }
-  if (!pathname) return new Response('Aucune photo.', { status: 404 })
 
-  const result = await get(pathname, {
+  const settings = await getSettings(payload)
+  const isPublic =
+    Boolean(settings.preselectionPublished) &&
+    candidate.status === 'preselectionne' &&
+    Boolean(candidate.published)
+
+  if (!isPublic) {
+    const { user } = await payload.auth({ headers: request.headers })
+    const allowed =
+      isAdminUser(user as never) ||
+      (isJuryUser(user as never) && candidate.status === 'preselectionne')
+    if (!allowed) return new Response('Accès réservé au comité.', { status: 401 })
+  }
+
+  if (!candidate.photoPathname) return new Response('Aucune photo.', { status: 404 })
+
+  const result = await get(candidate.photoPathname, {
     access: 'private',
     ifNoneMatch: request.headers.get('if-none-match') ?? undefined,
   })
   if (!result) return new Response('Photo introuvable.', { status: 404 })
 
+  const cacheControl = isPublic ? 'public, max-age=300' : 'private, no-cache'
   if (result.statusCode === 304) {
     return new Response(null, {
       status: 304,
-      headers: { ETag: result.blob.etag, 'Cache-Control': 'private, no-cache' },
+      headers: { ETag: result.blob.etag, 'Cache-Control': cacheControl },
     })
   }
 
@@ -47,7 +59,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       'Content-Type': result.blob.contentType,
       'X-Content-Type-Options': 'nosniff',
       ETag: result.blob.etag,
-      'Cache-Control': 'private, no-cache',
+      'Cache-Control': cacheControl,
     },
   })
 }

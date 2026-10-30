@@ -1,4 +1,5 @@
-import type { Access, CollectionConfig } from 'payload'
+import type { CollectionConfig, FieldAccess } from 'payload'
+import { adminOnly, isAdminUser, isJuryUser } from '../lib/access'
 import {
   CANDIDATURE_STATUSES,
   CHURCH_ROLES,
@@ -7,7 +8,7 @@ import {
   SITUATIONS,
 } from '../lib/candidature-schema'
 
-const isPayloadAdmin: Access = ({ req }) => req.user?.collection === 'users'
+const adminField: FieldAccess = ({ req }) => isAdminUser(req.user as never)
 
 const toOptions = (values: readonly string[]) => values.map((value) => ({ label: value, value }))
 
@@ -23,15 +24,20 @@ export const Candidatures: CollectionConfig = {
     plural: 'Candidatures',
   },
   access: {
-    read: isPayloadAdmin,
-    create: isPayloadAdmin,
-    update: isPayloadAdmin,
-    delete: isPayloadAdmin,
+    // Le jury ne voit que les présélectionnés, sans coordonnées privées.
+    read: ({ req }) => {
+      if (isAdminUser(req.user as never)) return true
+      if (isJuryUser(req.user as never)) return { status: { equals: 'preselectionne' } }
+      return false
+    },
+    create: adminOnly,
+    update: adminOnly,
+    delete: adminOnly,
   },
   admin: {
     group: 'Concours Authentique Homme',
     useAsTitle: 'fullName',
-    defaultColumns: ['candidateNumber', 'fullName', 'churchName', 'status', 'createdAt'],
+    defaultColumns: ['candidateNumber', 'fullName', 'churchName', 'status', 'published', 'worksStatus'],
     listSearchableFields: ['candidateNumber', 'fullName', 'churchName', 'email', 'phone'],
     description:
       'Dossiers privés des candidats. Filtrez par statut pour retrouver les dossiers conformes, à vérifier ou présélectionnés. Le téléphone et l’e-mail ne sont jamais publiés.',
@@ -92,7 +98,15 @@ export const Candidatures: CollectionConfig = {
       name: 'internalComment',
       label: 'Commentaire interne du comité',
       type: 'textarea',
-      admin: { description: 'Visible uniquement dans le back-office.' },
+      access: { read: adminField },
+      admin: { description: 'Visible uniquement par les administrateurs.' },
+    },
+    {
+      name: 'published',
+      label: 'Fiche publique (visible sur le site une fois la liste publiée)',
+      type: 'checkbox',
+      defaultValue: false,
+      index: true,
     },
     {
       type: 'tabs',
@@ -126,8 +140,22 @@ export const Candidatures: CollectionConfig = {
             {
               type: 'row',
               fields: [
-                { name: 'phone', label: 'Téléphone', type: 'text', required: true, index: true },
-                { name: 'email', label: 'E-mail', type: 'email', required: true, index: true },
+                {
+                  name: 'phone',
+                  label: 'Téléphone',
+                  type: 'text',
+                  required: true,
+                  index: true,
+                  access: { read: adminField },
+                },
+                {
+                  name: 'email',
+                  label: 'E-mail',
+                  type: 'email',
+                  required: true,
+                  index: true,
+                  access: { read: adminField },
+                },
               ],
             },
             {
@@ -233,7 +261,90 @@ export const Candidatures: CollectionConfig = {
               name: 'submittedFromIp',
               label: 'Adresse IP d’envoi',
               type: 'text',
+              access: { read: adminField },
               admin: { readOnly: true },
+            },
+          ],
+        },
+        {
+          label: 'Travaux',
+          description:
+            'Travaux reçus par WhatsApp. Pour la vidéo, mettez-la sur YouTube en « non répertoriée » et collez le lien.',
+          fields: [
+            {
+              name: 'worksStatus',
+              label: 'Statut des travaux',
+              type: 'select',
+              defaultValue: 'attendus',
+              options: [
+                { label: 'Travaux attendus', value: 'attendus' },
+                { label: 'Travaux reçus', value: 'recus' },
+                { label: 'Travaux incomplets', value: 'incomplets' },
+                { label: 'Travaux en vérification', value: 'verification' },
+                { label: 'Travaux validés', value: 'valides' },
+                { label: 'Travaux publiés', value: 'publies' },
+              ],
+            },
+            { name: 'reflectionTitle', label: 'Titre de la réflexion', type: 'text' },
+            {
+              name: 'reflectionSummary',
+              label: 'Introduction ou résumé',
+              type: 'textarea',
+            },
+            {
+              name: 'biblicalReferences',
+              label: 'Références bibliques',
+              type: 'textarea',
+              admin: { description: 'Une référence par ligne, ex. Luc 15 : 11-32' },
+            },
+            {
+              name: 'fullText',
+              label: 'Texte intégral du travail écrit',
+              type: 'textarea',
+              admin: { rows: 20 },
+            },
+            {
+              name: 'videoUrl',
+              label: 'Lien de la vidéo (YouTube ou Vimeo)',
+              type: 'text',
+            },
+          ],
+        },
+        {
+          label: 'Suivi',
+          fields: [
+            {
+              name: 'accessCodeHash',
+              type: 'text',
+              access: { read: adminField, update: adminField },
+              admin: { hidden: true },
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'codeSentAt',
+                  label: 'Code d’accès envoyé le',
+                  type: 'date',
+                  access: { read: adminField },
+                  admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+                },
+                {
+                  name: 'dossierDownloadedAt',
+                  label: 'Dossier téléchargé le',
+                  type: 'date',
+                  access: { read: adminField },
+                  admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+                },
+                {
+                  name: 'dossierDownloads',
+                  label: 'Téléchargements',
+                  type: 'number',
+                  defaultValue: 0,
+                  access: { read: adminField },
+                  admin: { readOnly: true },
+                },
+              ],
             },
           ],
         },

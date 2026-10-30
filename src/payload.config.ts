@@ -6,7 +6,10 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import { Candidatures } from './collections/Candidatures'
+import { JuryScores } from './collections/JuryScores'
 import { Users } from './collections/Users'
+import { VoteVerifications, Votes } from './collections/Votes'
+import { ContestSettings } from './globals/ContestSettings'
 
 const mongoUrl = process.env.MONGODB_URI || process.env.MONGODB_URL || ''
 
@@ -40,7 +43,8 @@ export default buildConfig({
     fallbackLanguage: 'fr',
     supportedLanguages: { fr },
   },
-  collections: [Candidatures, Users],
+  collections: [Candidatures, JuryScores, Votes, VoteVerifications, Users],
+  globals: [ContestSettings],
   editor: lexicalEditor(),
   secret,
   typescript: {

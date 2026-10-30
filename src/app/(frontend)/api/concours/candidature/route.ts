@@ -152,6 +152,15 @@ export async function POST(request: NextRequest) {
 
   const payload = await getPayload({ config })
 
+  const settings = (await payload.findGlobal({
+    slug: 'reglages-concours',
+    depth: 0,
+    overrideAccess: true,
+  })) as { registrationsOpen?: boolean }
+  if (settings.registrationsOpen === false) {
+    return fail('Les inscriptions sont closes.', 403)
+  }
+
   // Contrôle automatique (§6.1) + détection de doublon évident.
   const issues = checkConformity(data, Boolean(photo))
   const duplicates = await payload.find({
