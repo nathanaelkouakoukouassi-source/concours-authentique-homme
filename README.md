@@ -93,10 +93,18 @@ pnpm dev               # http://localhost:3000 et /admin
 pnpm generate:types    # après une modification des collections
 ```
 
-## Prochaines étapes (cahier des charges)
+## Guide du comité — déroulé du concours
 
-- Espace candidat sécurisé et téléchargement du dossier PDF (§7)
-- Gestion des travaux reçus par WhatsApp (§8)
-- Fiches publiques des dix candidats (§9)
-- Vote public avec code SMS (§10) — nécessite un fournisseur d’envoi de SMS
-- Espace jury, calcul 80 / 20 et résultats (§11 à §14)
+Tout se pilote depuis `/admin` → **Concours Authentique Homme → Pilotage du concours**.
+
+1. **Inscriptions** : onglet « 1. Inscriptions » (ouvrir/fermer, date limite, âge minimum).
+2. **Présélection** : dans **Candidatures**, passez les 10 retenus au statut *Présélectionné* et cochez *Fiche publique*.
+3. **Dossier PDF** : onglet « 2. Présélection et dossier » → *Importer le PDF* (4 Mo max), renseignez la date limite, le WhatsApp officiel et les consignes.
+4. **Codes d’accès** : bouton *Notifier les présélectionnés* — chacun reçoit par e-mail son code pour l’espace candidat (`/espace-candidat`), où il télécharge le dossier.
+5. **Liste publique** : cochez *Publier la liste des candidats présélectionnés*.
+6. **Travaux** : dans chaque candidature, onglet *Travaux* — titre, résumé, références, texte intégral, lien YouTube (non répertorié) de la vidéo, statut *Travaux publiés*.
+7. **Vote** : onglet « 3. Vote du public » → *Vote ouvert* (ou dates automatiques). Un vote par adresse e-mail vérifiée par code ; les votes se consultent dans **Votes du public**.
+8. **Jury** : créez les jurés dans **Comité et jury** (rôle *Membre du jury*). Chaque juré saisit ses fiches dans **Notes du jury** (phase *Présélection*, puis *Grande finale*).
+9. **Résultats** : onglet « 4. Jury et résultats » — classement calculé en direct (80 % jury / 20 % public), verrouillage des délibérations, publication du classement, annonce des 3 finalistes, sujet de la finale, proclamation des lauréats.
+
+Les e-mails (codes candidats, codes de vote, confirmations) nécessitent `RESEND_API_KEY` et un domaine vérifié sur Resend.
