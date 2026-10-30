@@ -1,14 +1,11 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import { fr } from '@payloadcms/translations/languages/fr'
 import { createHash } from 'crypto'
 import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
-import { CandidatePhotos } from './collections/CandidatePhotos'
 import { Candidatures } from './collections/Candidatures'
-import { Media } from './collections/Media'
 import { Users } from './collections/Users'
 
 const mongoUrl = process.env.MONGODB_URI || process.env.MONGODB_URL || ''
@@ -43,7 +40,7 @@ export default buildConfig({
     fallbackLanguage: 'fr',
     supportedLanguages: { fr },
   },
-  collections: [Candidatures, CandidatePhotos, Users, Media],
+  collections: [Candidatures, Users],
   editor: lexicalEditor(),
   secret,
   typescript: {
@@ -53,15 +50,4 @@ export default buildConfig({
   db: mongooseAdapter({
     url: mongoUrl,
   }),
-  storage: [
-    vercelBlobStorage({
-      // Sans jeton (développement local), les fichiers restent sur le disque.
-      enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
-      collections: {
-        media: true,
-        'candidate-photos': true,
-      },
-      token: process.env.BLOB_READ_WRITE_TOKEN || '',
-    }),
-  ],
 })

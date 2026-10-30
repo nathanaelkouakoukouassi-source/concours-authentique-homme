@@ -108,10 +108,20 @@ export const Candidatures: CollectionConfig = {
               ],
             },
             {
-              name: 'photo',
+              name: 'photoPreview',
               label: 'Photo',
-              type: 'upload',
-              relationTo: 'candidate-photos',
+              type: 'ui',
+              admin: {
+                components: {
+                  Field: '/components/PhotoPreview#PhotoPreview',
+                },
+              },
+            },
+            {
+              name: 'photoPathname',
+              label: 'Fichier photo (stockage privé)',
+              type: 'text',
+              admin: { readOnly: true },
             },
             {
               type: 'row',

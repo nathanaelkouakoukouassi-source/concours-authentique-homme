@@ -1,3 +1,4 @@
+import { put } from '@vercel/blob'
 import { randomInt } from 'crypto'
 import { NextRequest } from 'next/server'
 import { getPayload } from 'payload'
@@ -186,23 +187,17 @@ export async function POST(request: NextRequest) {
     candidateNumber = generateCandidateNumber()
   }
 
-  let photoId: string | number | undefined
+  let photoPathname: string | undefined
   try {
     if (photo) {
-      const buffer = Buffer.from(await photo.arrayBuffer())
-      const extension = photo.type.split('/')[1] === 'jpeg' ? 'jpg' : photo.type.split('/')[1]
-      const savedPhoto = await payload.create({
-        collection: 'candidate-photos',
-        data: { alt: `Photo de ${data.firstName} ${data.lastName} — ${candidateNumber}` },
-        file: {
-          data: buffer,
-          mimetype: photo.type,
-          name: `${candidateNumber}.${extension}`,
-          size: photo.size,
-        },
-        overrideAccess: true,
-      })
-      photoId = savedPhoto.id
+      // Stockage privé Vercel Blob : la photo n’est lisible que via /api/concours/photo/<id>.
+      const extension = photo.type === 'image/jpeg' ? 'jpg' : photo.type.split('/')[1]
+      const blob = await put(
+        `candidats/${candidateNumber}.${extension}`,
+        Buffer.from(await photo.arrayBuffer()),
+        { access: 'private', contentType: photo.type, addRandomSuffix: true },
+      )
+      photoPathname = blob.pathname
     }
 
     await payload.create({
@@ -213,7 +208,7 @@ export async function POST(request: NextRequest) {
         status,
         conformityIssues: issues.join('\n'),
         publishEducation: data.publishEducation === 'Oui',
-        photo: photoId,
+        photoPathname,
         submittedFromIp: ip,
       },
       overrideAccess: true,

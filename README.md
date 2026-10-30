@@ -5,7 +5,7 @@ Ministère Porteur d’Amour · 3 Jours de Reconnaissance 2026.
 
 - Page publique du concours : principe, sujet, étapes, travaux, évaluation, récompenses, règlement, candidats.
 - Inscription en 4 étapes avec photo, contrôle automatique des conditions, numéro unique `AH26-XXXXXX`.
-- Back-office `/admin` : candidatures (statuts Conforme / Non conforme / À vérifier / En attente / Présélectionné / Refusé, commentaires internes, recherche par nom ou église), photos privées, comptes du comité.
+- Back-office `/admin` : candidatures (statuts Conforme / Non conforme / À vérifier / En attente / Présélectionné / Refusé, commentaires internes, recherche par nom ou église), photos privées visibles uniquement par le comité connecté, comptes du comité.
 - E-mails : notification au comité, confirmation au candidat.
 
 Technologies : Next.js 16, Payload 3, MongoDB, Vercel Blob, Resend.
@@ -28,7 +28,7 @@ Technologies : Next.js 16, Payload 3, MongoDB, Vercel Blob, Resend.
 ### 3. Stockage des photos (Vercel Blob)
 
 1. Onglet **Storage → Create → Blob**.
-2. Relie-le au projet : la variable `BLOB_READ_WRITE_TOKEN` est ajoutée automatiquement.
+2. Choisis l’accès **Private** (les photos des candidats restent privées) et relie-le au projet.
 
 ### 4. Variables à saisir
 

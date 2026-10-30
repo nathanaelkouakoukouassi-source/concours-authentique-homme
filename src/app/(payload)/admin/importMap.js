@@ -1,8 +1,7 @@
-import { VercelBlobClientUploadHandler as VercelBlobClientUploadHandler_16c82c5e25f430251a3e3ba57219ff4e } from '@payloadcms/storage-vercel-blob/client'
+import { PhotoPreview as PhotoPreview_concours } from '../../../components/PhotoPreview'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/ui/rsc'
 
 export const importMap = {
-  '@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler':
-    VercelBlobClientUploadHandler_16c82c5e25f430251a3e3ba57219ff4e,
+  '/components/PhotoPreview#PhotoPreview': PhotoPreview_concours,
   '@payloadcms/ui/rsc#CollectionCards': CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,
 }
