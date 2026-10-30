@@ -107,4 +107,4 @@ Tout se pilote depuis `/admin` → **Concours Authentique Homme → Pilotage du 
 8. **Jury** : créez les jurés dans **Comité et jury** (rôle *Membre du jury*). Chaque juré saisit ses fiches dans **Notes du jury** (phase *Présélection*, puis *Grande finale*).
 9. **Résultats** : onglet « 4. Jury et résultats » — classement calculé en direct (80 % jury / 20 % public), verrouillage des délibérations, publication du classement, annonce des 3 finalistes, sujet de la finale, proclamation des lauréats.
 
-Les e-mails (codes candidats, codes de vote, confirmations) nécessitent `RESEND_API_KEY` et un domaine vérifié sur Resend.
+Les e-mails (codes candidats, codes de vote, confirmations) partent de la boîte Gmail du Ministère : variables Vercel `GMAIL_USER` (adresse) et `GMAIL_APP_PASSWORD` (mot de passe d’application Google, après activation de la validation en deux étapes). Limite Gmail : environ 500 e-mails par jour. Resend (`RESEND_API_KEY`) reste possible en alternative.

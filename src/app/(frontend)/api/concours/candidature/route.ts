@@ -13,6 +13,7 @@ import {
   normalizePhone,
   type CandidatureData,
 } from '@/lib/candidature-schema'
+import { sendEmail } from '@/lib/server/email'
 
 const rateLimits = new Map<string, number[]>()
 const RATE_WINDOW_MS = 15 * 60 * 1000
@@ -65,22 +66,6 @@ function emailLayout(title: string, inner: string) {
         <div style="padding:16px 24px;border-top:1px solid #ddd5e8;font-size:12px;color:#665e78">Ministère Porteur d’Amour — 3 Jours de Reconnaissance 2026</div>
       </div>
     </div>`
-}
-
-async function sendEmail(to: string, subject: string, html: string, replyTo?: string) {
-  const apiKey = process.env.RESEND_API_KEY
-  const from = process.env.MINISTRY_FROM_EMAIL
-  if (!apiKey || !from) return false
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, html, reply_to: replyTo }),
-    })
-    return response.ok
-  } catch {
-    return false
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -257,7 +242,7 @@ export async function POST(request: NextRequest) {
      <p style="margin-top:24px">Le comité d’organisation<br/>Ministère Porteur d’Amour</p>`,
   )
 
-  const destination = process.env.MINISTRY_DESTINATION_EMAIL
+  const destination = process.env.MINISTRY_DESTINATION_EMAIL || process.env.GMAIL_USER
   await Promise.allSettled([
     destination
       ? sendEmail(

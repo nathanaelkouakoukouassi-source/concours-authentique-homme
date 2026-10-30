@@ -33,24 +33,55 @@ export function codeBlock(label: string, code: string) {
   </p>`
 }
 
-export function emailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY)
+/** Gmail (adresse officielle du Ministère + mot de passe d’application) ou, à défaut, Resend. */
+function gmailConfigured() {
+  return Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD)
 }
 
-/** Envoie un e-mail via Resend. Renvoie false si l’envoi est impossible ou a échoué. */
+export function emailConfigured() {
+  return gmailConfigured() || Boolean(process.env.RESEND_API_KEY)
+}
+
+let transporter: import('nodemailer').Transporter | null = null
+
+async function sendWithGmail(to: string, subject: string, html: string, replyTo?: string) {
+  const nodemailer = await import('nodemailer')
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        // Le mot de passe d’application Google s’affiche avec des espaces : on les retire.
+        pass: String(process.env.GMAIL_APP_PASSWORD).replace(/\s/g, ''),
+      },
+    })
+  }
+  await transporter.sendMail({
+    from: `"Concours Authentique Homme" <${process.env.GMAIL_USER}>`,
+    to,
+    subject,
+    html,
+    replyTo: replyTo || process.env.GMAIL_USER,
+  })
+  return true
+}
+
+/** Envoie un e-mail. Renvoie false si l’envoi est impossible ou a échoué. */
 export async function sendEmail(to: string, subject: string, html: string, replyTo?: string) {
-  const apiKey = process.env.RESEND_API_KEY
-  const from =
-    process.env.MINISTRY_FROM_EMAIL || 'Concours Authentique Homme <onboarding@resend.dev>'
-  if (!apiKey) return false
   try {
+    if (gmailConfigured()) return await sendWithGmail(to, subject, html, replyTo)
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) return false
+    const from =
+      process.env.MINISTRY_FROM_EMAIL || 'Concours Authentique Homme <onboarding@resend.dev>'
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ from, to: [to], subject, html, reply_to: replyTo }),
     })
     return response.ok
-  } catch {
+  } catch (error) {
+    console.error('Envoi d’e-mail impossible :', error instanceof Error ? error.message : error)
     return false
   }
 }

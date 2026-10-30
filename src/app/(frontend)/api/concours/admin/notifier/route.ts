@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         message:
-          'L’envoi d’e-mails n’est pas encore configuré (clé RESEND_API_KEY manquante dans Vercel).',
+          'L’envoi d’e-mails n’est pas encore configuré (variables GMAIL_USER et GMAIL_APP_PASSWORD à ajouter dans Vercel).',
       },
       503,
     )
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       candidate.email,
       'Félicitations ! Vous êtes présélectionné(e) au concours AUTHENTIQUE HOMME',
       html,
-      process.env.MINISTRY_DESTINATION_EMAIL,
+      process.env.MINISTRY_DESTINATION_EMAIL || process.env.GMAIL_USER,
     )
     if (!ok) {
       failed.push(candidate.candidateNumber)
