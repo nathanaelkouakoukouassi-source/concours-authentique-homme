@@ -1,8 +1,8 @@
 import type { Payload } from 'payload'
 import { scoreCandidature } from './ai-scoring'
 import { type CandidatureDoc, type Settings } from './contest'
-import { codeBlock, emailConfigured, emailLayout, escapeHtml, sendEmail } from './email'
-import { hashCode, randomCode } from './security'
+import { sendAccessCode } from './access-code'
+import { emailConfigured } from './email'
 
 type SelectionSettings = Settings & {
   registrationClosesAt?: string | null
@@ -138,6 +138,7 @@ export async function runSelection(
           ...(selected ? { status: 'preselectionne', published: true } : {}),
         },
         overrideAccess: true,
+        context: { skipAccessCode: true },
       })
     }
     const selected = scored.slice(0, size)
@@ -158,34 +159,12 @@ export async function runSelection(
       } else {
         let sent = 0
         for (const candidate of selected) {
-          if (!candidate.email) continue
-          const code = randomCode(8)
-          const link = options.origin ? `${options.origin}/espace-candidat` : '/espace-candidat'
-          const ok = await sendEmail(
-            candidate.email,
-            'Félicitations ! Vous êtes présélectionné(e) au concours AUTHENTIQUE HOMME',
-            emailLayout(
-              'Félicitations ! Vous êtes présélectionné(e).',
-              `<p>Bonjour ${escapeHtml(candidate.firstName || '')},</p>
-               <p>Votre candidature a été retenue parmi les candidats sélectionnés pour participer au concours <strong>AUTHENTIQUE HOMME</strong>.</p>
-               <p>Votre dossier de participation est disponible dans votre espace candidat, directement sur le site.</p>
-               ${codeBlock('Votre code d’accès personnel', code)}
-               <p>Numéro de candidature : <strong>${escapeHtml(candidate.candidateNumber)}</strong></p>
-               <p style="text-align:center;margin:28px 0"><a href="${link}" style="display:inline-block;background:#4736b6;color:white;padding:14px 26px;border-radius:999px;text-decoration:none;font-weight:700">Accéder à mon espace candidat</a></p>
-               <p>Gardez ce code confidentiel.</p>
-               <p style="margin-top:24px">Le comité d’organisation<br/>Ministère Porteur d’Amour</p>`,
-            ),
-            process.env.MINISTRY_DESTINATION_EMAIL || process.env.GMAIL_USER,
-          )
-          if (ok) {
-            sent += 1
-            await payload.update({
-              collection: 'candidatures',
-              id: candidate.id,
-              data: { accessCodeHash: hashCode(code), codeSentAt: new Date().toISOString() },
-              overrideAccess: true,
-            })
-          }
+          const error = await sendAccessCode(payload, candidate, {
+            origin: options.origin,
+            submissionDeadline: settings.submissionDeadline,
+          })
+          if (!error) sent += 1
+          else log.push(`Code non envoyé à ${candidate.candidateNumber} : ${error}`)
         }
         log.push(`Codes d’accès envoyés : ${sent}/${selected.length}`)
       }

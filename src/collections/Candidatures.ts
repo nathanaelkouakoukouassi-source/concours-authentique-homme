@@ -1,4 +1,5 @@
-import type { CollectionConfig, FieldAccess } from 'payload'
+import { after } from 'next/server'
+import type { CollectionAfterChangeHook, CollectionConfig, FieldAccess } from 'payload'
 import { adminOnly, isAdminUser, isJuryUser } from '../lib/access'
 import {
   CANDIDATURE_STATUSES,
@@ -11,6 +12,45 @@ import {
 const adminField: FieldAccess = ({ req }) => isAdminUser(req.user as never)
 
 const toOptions = (values: readonly string[]) => values.map((value) => ({ label: value, value }))
+
+/**
+ * Dès qu’une candidature passe en « Présélectionné » (à la main dans le back-office),
+ * le candidat reçoit automatiquement son code d’accès par e-mail, s’il ne l’a pas déjà.
+ * La sélection automatique gère elle-même ses envois (context.skipAccessCode).
+ */
+const sendCodeOnPreselection: CollectionAfterChangeHook = ({ doc, previousDoc, req, context }) => {
+  if (context?.skipAccessCode) return doc
+  if (doc.status !== 'preselectionne' || previousDoc?.status === 'preselectionne') return doc
+  if (doc.codeSentAt) return doc
+
+  const task = async () => {
+    const { sendAccessCode } = await import('../lib/server/access-code')
+    const settings = (await req.payload.findGlobal({
+      slug: 'reglages-concours',
+      depth: 0,
+      overrideAccess: true,
+    })) as { submissionDeadline?: string | null }
+    const error = await sendAccessCode(req.payload, doc, {
+      submissionDeadline: settings.submissionDeadline,
+    })
+    if (error) {
+      await req.payload.update({
+        collection: 'candidatures',
+        id: doc.id,
+        data: { codeError: error.slice(0, 250) },
+        overrideAccess: true,
+        context: { skipAccessCode: true },
+      })
+    }
+  }
+  // Après la réponse, une fois l’enregistrement validé en base.
+  try {
+    after(task)
+  } catch {
+    setTimeout(() => void task(), 0)
+  }
+  return doc
+}
 
 /**
  * Candidatures au concours AUTHENTIQUE HOMME.
@@ -44,6 +84,7 @@ export const Candidatures: CollectionConfig = {
     pagination: { defaultLimit: 50 },
   },
   hooks: {
+    afterChange: [sendCodeOnPreselection],
     beforeChange: [
       ({ data }) => {
         if (data && (data.lastName || data.firstName)) {
@@ -447,6 +488,13 @@ export const Candidatures: CollectionConfig = {
                   type: 'date',
                   access: { read: adminField },
                   admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+                },
+                {
+                  name: 'codeError',
+                  label: 'Échec d’envoi du code',
+                  type: 'text',
+                  access: { read: adminField },
+                  admin: { readOnly: true },
                 },
                 {
                   name: 'dossierDownloadedAt',
