@@ -21,7 +21,8 @@ import {
 } from '@/lib/quiz'
 import { scoreCandidature } from '@/lib/server/ai-scoring'
 import { getQuiz } from '@/lib/server/contest'
-import { sendEmail } from '@/lib/server/email'
+import { codeBlock, sendEmail } from '@/lib/server/email'
+import { hashCode, randomCode } from '@/lib/server/security'
 import { registrationsAreOpen } from '@/lib/server/selection'
 
 export const maxDuration = 60
@@ -215,6 +216,9 @@ export async function POST(request: NextRequest) {
 
   let photoPathname: string | undefined
   let createdId = ''
+  // Code d’accès remis tout de suite (écran de confirmation) : il n’ouvre l’espace candidat
+  // qu’en cas de présélection.
+  const accessCode = randomCode(8)
   try {
     if (photo) {
       // Stockage privé Vercel Blob : la photo n’est lisible que via /api/concours/photo/<id>.
@@ -241,6 +245,7 @@ export async function POST(request: NextRequest) {
         quizScore,
         reflection,
         selectionScore: quizScore,
+        accessCodeHash: hashCode(accessCode),
       },
       overrideAccess: true,
     })
@@ -278,11 +283,10 @@ export async function POST(request: NextRequest) {
     'Votre candidature est enregistrée',
     `<p>Bonjour ${escapeHtml(data.firstName || '')},</p>
      <p>Félicitations ! Votre candidature au concours AUTHENTIQUE HOMME a bien été enregistrée.</p>
-     <p style="margin:24px 0;padding:16px;border-radius:14px;background:#fff0df;text-align:center">
-       Votre numéro de candidature<br/>
-       <strong style="font-size:22px;letter-spacing:2px;color:#1b0c67">${escapeHtml(candidateNumber)}</strong>
-     </p>
-     <p>Votre dossier sera examiné par le comité d’organisation. Vous recevrez une notification par e-mail concernant la suite de votre candidature.</p>
+     ${codeBlock('Votre numéro de candidature', candidateNumber)}
+     ${codeBlock('Votre code d’accès personnel', accessCode)}
+     <p>Conservez précieusement ces deux informations. Si vous faites partie des candidats présélectionnés, elles vous permettront d’entrer dans votre espace candidat pour télécharger le dossier et déposer vos travaux.</p>
+     <p>Votre dossier sera examiné par le comité d’organisation. La liste des présélectionnés sera publiée sur le site du concours.</p>
      <p>Merci pour votre intérêt et votre participation.</p>
      <p style="margin-top:24px">Le comité d’organisation<br/>Ministère Porteur d’Amour</p>`,
   )
@@ -305,5 +309,5 @@ export async function POST(request: NextRequest) {
     ),
   ])
 
-  return Response.json({ success: true, candidateNumber })
+  return Response.json({ success: true, candidateNumber, accessCode })
 }

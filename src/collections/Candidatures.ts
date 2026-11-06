@@ -474,6 +474,11 @@ export const Candidatures: CollectionConfig = {
           label: 'Suivi',
           fields: [
             {
+              name: 'newAccessCode',
+              type: 'ui',
+              admin: { components: { Field: '/components/admin/NewAccessCode#NewAccessCode' } },
+            },
+            {
               name: 'accessCodeHash',
               type: 'text',
               access: { read: adminField, update: adminField },

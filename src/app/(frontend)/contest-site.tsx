@@ -1247,6 +1247,8 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
   const [state, setState] = useState<SubmitState>('idle')
   const [serverMessage, setServerMessage] = useState('')
   const [candidateNumber, setCandidateNumber] = useState('')
+  const [accessCode, setAccessCode] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!photo) {
@@ -1351,11 +1353,13 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
         success?: boolean
         message?: string
         candidateNumber?: string
+        accessCode?: string
       }
       if (!response.ok || !result.success) {
         throw new Error(result.message || 'L’envoi de votre candidature a échoué.')
       }
       setCandidateNumber(result.candidateNumber || '')
+      setAccessCode(result.accessCode || '')
       setState('success')
       scrollTop()
     } catch (error) {
@@ -1386,19 +1390,53 @@ function CandidatureForm({ onBack }: { onBack: () => void }) {
               Votre candidature au concours AUTHENTIQUE HOMME a bien été enregistrée.
             </p>
             <p>
-              Votre dossier sera examiné par le comité d’organisation. Vous recevrez une
-              notification par e-mail concernant la suite de votre candidature.
+              Votre dossier sera examiné par le comité d’organisation. La liste des présélectionnés
+              sera publiée sur le site du concours.
             </p>
             <p>Merci pour votre intérêt et votre participation.</p>
           </div>
           {candidateNumber && (
-            <div className="mx-auto mt-8 max-w-sm rounded-2xl bg-wine px-6 py-5 text-white">
-              <p className="text-xs uppercase tracking-[0.2em] text-gold-light">
-                Votre numéro de candidature
-              </p>
-              <p className="mt-2 font-mono text-2xl font-bold tracking-wider">{candidateNumber}</p>
-              <p className="mt-2 text-xs text-white/65">
-                Conservez-le : il vous sera demandé à chaque étape.
+            <div className="mx-auto mt-8 max-w-md rounded-2xl bg-wine px-6 py-6 text-white">
+              <div className="grid gap-5 sm:grid-cols-2 sm:gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-gold-light">
+                    Numéro de candidature
+                  </p>
+                  <p className="mt-2 font-mono text-xl font-bold tracking-wider sm:text-2xl">
+                    {candidateNumber}
+                  </p>
+                </div>
+                {accessCode && (
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-gold-light">
+                      Code d’accès
+                    </p>
+                    <p className="mt-2 font-mono text-xl font-bold tracking-[0.25em] sm:text-2xl">
+                      {accessCode}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(
+                      `Concours Authentique Homme\nNuméro de candidature : ${candidateNumber}\nCode d’accès : ${accessCode}`,
+                    )
+                    setCopied(true)
+                  } catch {
+                    setCopied(false)
+                  }
+                }}
+                className="mt-5 rounded-full bg-gold px-5 py-2.5 text-sm font-extrabold text-wine-dark transition hover:bg-gold-light"
+              >
+                {copied ? 'Copié !' : 'Copier mes identifiants'}
+              </button>
+              <p className="mt-4 text-xs leading-5 text-white/75">
+                Notez-les ou faites une capture d’écran maintenant : ils ne seront plus affichés.
+                Si vous êtes présélectionné(e), ils ouvriront votre espace candidat (dossier PDF et
+                dépôt des travaux).
               </p>
             </div>
           )}

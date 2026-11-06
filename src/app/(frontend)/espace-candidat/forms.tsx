@@ -12,6 +12,7 @@ export function LoginForm() {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -23,7 +24,12 @@ export function LoginForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ numero, code }),
       })
-      const result = (await response.json()) as { success?: boolean; message?: string }
+      const result = (await response.json()) as {
+        success?: boolean
+        message?: string
+        pending?: boolean
+      }
+      setPending(Boolean(result.pending))
       if (!response.ok || !result.success) throw new Error(result.message || 'Connexion impossible.')
       router.refresh()
     } catch (loginError) {
@@ -46,7 +52,7 @@ export function LoginForm() {
         />
       </label>
       <label className="grid gap-2 text-sm font-semibold text-ink">
-        Code d’accès reçu par e-mail
+        Code d’accès remis à l’inscription
         <input
           className={`${input} font-mono uppercase tracking-[0.3em]`}
           value={code}
@@ -56,7 +62,10 @@ export function LoginForm() {
         />
       </label>
       {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <p
+          role="alert"
+          className={`rounded-xl border p-3 text-sm leading-6 ${pending ? 'border-gold/40 bg-gold-soft text-ink' : 'border-red-200 bg-red-50 text-red-800'}`}
+        >
           {error}
         </p>
       )}
@@ -68,7 +77,7 @@ export function LoginForm() {
         {busy ? 'Connexion…' : 'Accéder à mon espace'}
       </button>
       <p className="text-center text-xs leading-5 text-muted">
-        Code perdu ? Écrivez au comité à{' '}
+        Votre code vous a été donné à la fin de votre inscription. Code perdu ? Écrivez au comité à{' '}
         <a href="mailto:ministereporteurdamour@gmail.com" className="font-semibold text-wine underline">
           ministereporteurdamour@gmail.com
         </a>{' '}

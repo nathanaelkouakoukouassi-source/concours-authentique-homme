@@ -65,7 +65,7 @@ export default async function CandidateSpacePage() {
             </h1>
             <p className="mt-4 leading-7 text-muted">
               Réservé aux dix candidats présélectionnés. Saisissez votre numéro de candidature et
-              le code d’accès reçu par e-mail.
+              le code d’accès affichés à la fin de votre inscription.
             </p>
             <LoginForm />
           </section>

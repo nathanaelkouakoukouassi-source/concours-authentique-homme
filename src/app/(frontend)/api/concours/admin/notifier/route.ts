@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
     const error = await sendAccessCode(payload, candidate, {
       origin: new URL(request.url).origin,
       submissionDeadline: settings.submissionDeadline,
+      regenerate: mode === 'tous',
     })
     if (error) {
       failed.push(`${candidate.candidateNumber} (${error})`)

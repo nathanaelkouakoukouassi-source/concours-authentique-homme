@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { type CandidatureDoc, payloadClient } from '@/lib/server/contest'
+import { type CandidatureDoc, getSettings, payloadClient } from '@/lib/server/contest'
 import {
   CANDIDATE_COOKIE,
   clientIp,
@@ -47,11 +47,21 @@ export async function POST(request: NextRequest) {
 
   if (
     !candidate ||
-    candidate.status !== 'preselectionne' ||
     !candidate.accessCodeHash ||
     !safeEqual(candidate.accessCodeHash, hashCode(code))
   ) {
     return Response.json({ success: false, message: GENERIC_ERROR }, { status: 401 })
+  }
+
+  // Identifiants corrects : on dit au candidat où en est sa candidature.
+  if (candidate.status !== 'preselectionne') {
+    const settings = await getSettings(payload)
+    const selectionDone = (settings as { selectionStatus?: string }).selectionStatus === 'terminee'
+    const message =
+      candidate.status === 'refuse' || (selectionDone && settings.preselectionPublished)
+        ? 'Votre candidature est bien enregistrée, mais elle ne fait pas partie des candidats présélectionnés. Merci sincèrement pour votre participation : vous pouvez suivre les candidats et voter sur le site.'
+        : 'Vos identifiants sont corrects. Votre espace s’ouvrira si votre candidature est présélectionnée : la liste sera publiée sur le site à la clôture des inscriptions.'
+    return Response.json({ success: false, message, pending: true }, { status: 403 })
   }
 
   const session = createCandidateSession(String(candidate.id))
